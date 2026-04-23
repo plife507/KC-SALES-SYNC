@@ -125,6 +125,7 @@ export async function ensureTab(spreadsheetId: string, tabName: string): Promise
 
 const SYNC_LOG_TAB = "Log";
 const SYNC_LOG_HEADERS = ["Timestamp", "Command", "Tabs", "Status", "Quotes", "Elapsed", "Error"];
+const MAX_SYNC_LOG_ROWS = 500;
 
 export interface SyncLogEntry {
   timestamp: string;
@@ -169,6 +170,19 @@ async function ensureSyncLogTab(sheets: sheets_v4.Sheets, spreadsheetId: string)
 export async function logSyncResult(spreadsheetId: string, entry: SyncLogEntry): Promise<void> {
   const sheets = await getSheetsClient();
   await ensureSyncLogTab(sheets, spreadsheetId);
+
+  const existingRows = await sheets.spreadsheets.values.get({
+    spreadsheetId,
+    range: `'${SYNC_LOG_TAB}'!A2:A${MAX_SYNC_LOG_ROWS + 1}`,
+  });
+  const existingRowCount = (existingRows.data.values ?? []).filter((row) => (row?.[0] ?? "").toString().trim().length > 0).length;
+
+  if (existingRowCount >= MAX_SYNC_LOG_ROWS) {
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId,
+      range: `'${SYNC_LOG_TAB}'!A2:G`,
+    });
+  }
 
   await sheets.spreadsheets.values.append({
     spreadsheetId,

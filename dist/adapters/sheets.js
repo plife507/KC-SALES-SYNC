@@ -102,6 +102,7 @@ export async function ensureTab(spreadsheetId, tabName) {
 }
 const SYNC_LOG_TAB = "Log";
 const SYNC_LOG_HEADERS = ["Timestamp", "Command", "Tabs", "Status", "Quotes", "Elapsed", "Error"];
+const MAX_SYNC_LOG_ROWS = 500;
 async function ensureSyncLogTab(sheets, spreadsheetId) {
     const existing = await getSpreadsheetSheet(sheets, spreadsheetId, SYNC_LOG_TAB, "sheets.properties");
     if (existing)
@@ -133,6 +134,17 @@ async function ensureSyncLogTab(sheets, spreadsheetId) {
 export async function logSyncResult(spreadsheetId, entry) {
     const sheets = await getSheetsClient();
     await ensureSyncLogTab(sheets, spreadsheetId);
+    const existingRows = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `'${SYNC_LOG_TAB}'!A2:A${MAX_SYNC_LOG_ROWS + 1}`,
+    });
+    const existingRowCount = (existingRows.data.values ?? []).filter((row) => (row?.[0] ?? "").toString().trim().length > 0).length;
+    if (existingRowCount >= MAX_SYNC_LOG_ROWS) {
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range: `'${SYNC_LOG_TAB}'!A2:G`,
+        });
+    }
     await sheets.spreadsheets.values.append({
         spreadsheetId,
         range: `'${SYNC_LOG_TAB}'!A:G`,
