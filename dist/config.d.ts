@@ -1,4 +1,4 @@
-export declare const DEFAULT_SHEET_TITLE = "Draft Quote Sales Touch";
+export declare const DEFAULT_SHEET_TITLE = "kc-sales-sync";
 export declare const JOBBER_ACCESS_TOKEN: string | undefined;
 export declare const JOBBER_CLIENT_ID: string | undefined;
 export declare const JOBBER_CLIENT_SECRET: string | undefined;

@@ -1,4 +1,4 @@
-export const DEFAULT_SHEET_TITLE = "Draft Quote Sales Touch";
+export const DEFAULT_SHEET_TITLE = "kc-sales-sync";
 function env(name) {
     const value = process.env[name]?.trim();
     return value ? value : undefined;

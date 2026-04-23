@@ -7,7 +7,7 @@ export async function runSheetInit(title = DEFAULT_SHEET_TITLE) {
 }
 export async function runSync(options) {
     const spreadsheetId = options?.spreadsheetId ?? requireEnv("SPREADSHEET_ID");
-    const tabName = options?.tabName ?? (process.env.SHEET_TAB?.trim() || "Draft Quote Sales Touch");
+    const tabName = options?.tabName ?? (process.env.SHEET_TAB?.trim() || "DRAFT");
     const limit = options?.limit ?? Number(process.env.QUOTE_LIMIT?.trim() || "100");
     const pageSize = options?.pageSize ?? Number(process.env.QUOTE_PAGE_SIZE?.trim() || "10");
     const quotes = await fetchDraftQuotes(limit, pageSize);
