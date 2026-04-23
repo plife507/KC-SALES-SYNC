@@ -1,0 +1,12 @@
+export declare const DEFAULT_SHEET_TITLE = "Draft Quote Sales Touch";
+export declare const JOBBER_ACCESS_TOKEN: string | undefined;
+export declare const JOBBER_API_URL: string;
+export declare const JOBBER_API_VERSION: string;
+export declare const JOBBER_REQUEST_DELAY_MS: number;
+export declare const JOBBER_NOTES_PAGE_SIZE: number;
+export declare const GOG_ACCOUNT: string | undefined;
+export declare const GOG_CREDENTIALS_PATH: string | undefined;
+export declare const GOOGLE_CLIENT_ID: string | undefined;
+export declare const GOOGLE_CLIENT_SECRET: string | undefined;
+export declare const GOOGLE_REFRESH_TOKEN: string | undefined;
+export declare function requireEnv(name: string): string;
