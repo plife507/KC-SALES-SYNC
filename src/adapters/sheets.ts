@@ -123,6 +123,73 @@ export async function ensureTab(spreadsheetId: string, tabName: string): Promise
   });
 }
 
+const SYNC_LOG_TAB = "Log";
+const SYNC_LOG_HEADERS = ["Timestamp", "Command", "Tabs", "Status", "Quotes", "Elapsed", "Error"];
+
+export interface SyncLogEntry {
+  timestamp: string;
+  command: string;
+  tabNames: string[];
+  status: string;
+  quoteCount: number;
+  elapsed: string;
+  error: string;
+}
+
+async function ensureSyncLogTab(sheets: sheets_v4.Sheets, spreadsheetId: string): Promise<void> {
+  const existing = await getSpreadsheetSheet(sheets, spreadsheetId, SYNC_LOG_TAB, "sheets.properties");
+  if (existing) return;
+
+  await sheets.spreadsheets.batchUpdate({
+    spreadsheetId,
+    requestBody: {
+      requests: [
+        {
+          addSheet: {
+            properties: {
+              title: SYNC_LOG_TAB,
+              index: 0,
+            },
+          },
+        },
+      ],
+    },
+  });
+
+  await sheets.spreadsheets.values.update({
+    spreadsheetId,
+    range: `'${SYNC_LOG_TAB}'!A1:G1`,
+    valueInputOption: "RAW",
+    requestBody: {
+      values: [SYNC_LOG_HEADERS],
+    },
+  });
+}
+
+export async function logSyncResult(spreadsheetId: string, entry: SyncLogEntry): Promise<void> {
+  const sheets = await getSheetsClient();
+  await ensureSyncLogTab(sheets, spreadsheetId);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId,
+    range: `'${SYNC_LOG_TAB}'!A:G`,
+    valueInputOption: "RAW",
+    insertDataOption: "INSERT_ROWS",
+    requestBody: {
+      values: [[
+        entry.timestamp,
+        entry.command,
+        entry.tabNames.join(", "),
+        entry.status,
+        entry.quoteCount,
+        entry.elapsed,
+        entry.error,
+      ]],
+    },
+  });
+}
+
+
 export async function writeRows(spreadsheetId: string, tabName: string, values: string[][]): Promise<void> {
   const sheets = await getSheetsClient();
   const layout = resolveSheetLayout(tabName);

@@ -53,3 +53,4 @@
 - Same-shape multi-tab sync is now env-driven via `SHEET_TABS`
 - Debug/sample access is now explicitly gated
 - Live check on quote `110976` confirms only column L is colored
+- Sync runs now append to a `Log` tab in the sheet for run history

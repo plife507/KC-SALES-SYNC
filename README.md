@@ -91,6 +91,7 @@ Manual HTTP trigger shape:
 
 Notes:
 - `sync` writes the same output to every tab listed in `SHEET_TABS` when present.
+- each sync appends a run record to the `Log` tab in the target spreadsheet.
 - `sample` is for debug use and is blocked unless `ALLOW_DEBUG_COMMANDS=true`.
 
 Optional body fields:

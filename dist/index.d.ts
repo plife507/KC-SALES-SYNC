@@ -12,6 +12,7 @@ export declare function runSync(options?: {
     tabNames: string[];
     rowCount: number;
     pageSize: number;
+    elapsed: string;
     status: "ok";
 }>;
 export declare function runSample(limit?: number): Promise<import("./types.js").SheetRow[]>;
@@ -23,5 +24,6 @@ export declare function runCommand(command: string): Promise<{
     tabNames: string[];
     rowCount: number;
     pageSize: number;
+    elapsed: string;
     status: "ok";
 }>;
