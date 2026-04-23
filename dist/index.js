@@ -37,7 +37,15 @@ async function main() {
     const result = await runCommand(command);
     console.log(JSON.stringify(result, null, 2));
 }
-main().catch((error) => {
-    console.error(error instanceof Error ? error.message : String(error));
-    process.exit(1);
-});
+function isDirectRun() {
+    const entrypoint = process.argv[1];
+    if (!entrypoint)
+        return false;
+    return import.meta.url === new URL(`file://${entrypoint}`).href;
+}
+if (isDirectRun()) {
+    main().catch((error) => {
+        console.error(error instanceof Error ? error.message : String(error));
+        process.exit(1);
+    });
+}

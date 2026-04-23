@@ -13,6 +13,9 @@ function envNumber(name: string, fallback: number): number {
 }
 
 export const JOBBER_ACCESS_TOKEN = env("JOBBER_ACCESS_TOKEN");
+export const JOBBER_CLIENT_ID = env("JOBBER_CLIENT_ID");
+export const JOBBER_CLIENT_SECRET = env("JOBBER_CLIENT_SECRET");
+export const JOBBER_REFRESH_TOKEN = env("JOBBER_REFRESH_TOKEN");
 export const JOBBER_API_URL = env("JOBBER_API_URL") ?? "https://api.getjobber.com/api/graphql";
 export const JOBBER_API_VERSION = env("JOBBER_API_VERSION") ?? "2025-04-16";
 export const JOBBER_REQUEST_DELAY_MS = envNumber("JOBBER_REQUEST_DELAY_MS", 400);

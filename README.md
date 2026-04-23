@@ -30,7 +30,10 @@ Local `gog` auth remains an optional fallback for development convenience.
 ## Required env
 
 - `SPREADSHEET_ID`
-- `JOBBER_ACCESS_TOKEN`
+- `JOBBER_ACCESS_TOKEN` or the refresh-token trio below
+- `JOBBER_CLIENT_ID`
+- `JOBBER_CLIENT_SECRET`
+- `JOBBER_REFRESH_TOKEN`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REFRESH_TOKEN`
@@ -63,7 +66,7 @@ Deploy:
 ```bash
 gcloud run deploy kc-sales-sync \
   --source . \
-  --region us-west2 \
+  --region us-central1 \
   --project aya-gservicies \
   --no-allow-unauthenticated \
   --memory 512Mi \

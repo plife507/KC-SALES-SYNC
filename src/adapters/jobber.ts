@@ -2,16 +2,139 @@ import {
   JOBBER_ACCESS_TOKEN,
   JOBBER_API_URL,
   JOBBER_API_VERSION,
+  JOBBER_CLIENT_ID,
+  JOBBER_CLIENT_SECRET,
   JOBBER_NOTES_PAGE_SIZE,
+  JOBBER_REFRESH_TOKEN,
   JOBBER_REQUEST_DELAY_MS,
   requireEnv,
 } from "../config.js";
 import type { DraftQuote, QuoteNote, QuoteNoteActor } from "../types.js";
 
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const MAX_PAGE_SIZE = 10;
+const DEFAULT_QUERY_COST = 500;
+
+interface ThrottleStatus {
+  maximumAvailable: number;
+  currentlyAvailable: number;
+  restoreRate: number;
+}
+
+interface JobberGraphQLError {
+  message?: string;
+}
+
+interface JobberGraphQLResponse<T> {
+  data?: T;
+  errors?: JobberGraphQLError[];
+  extensions?: {
+    cost?: {
+      requestedQueryCost?: number;
+      actualQueryCost?: number | null;
+      throttleStatus?: ThrottleStatus;
+    };
+    throttleStatus?: ThrottleStatus;
+  };
+}
+
+class SimpleThrottleManager {
+  private status: ThrottleStatus = {
+    maximumAvailable: 10000,
+    currentlyAvailable: 10000,
+    restoreRate: 500,
+  };
+
+  update(response: JobberGraphQLResponse<unknown>) {
+    const throttle = response.extensions?.cost?.throttleStatus ?? response.extensions?.throttleStatus;
+    if (!throttle) return;
+    this.status = {
+      maximumAvailable: throttle.maximumAvailable,
+      currentlyAvailable: throttle.currentlyAvailable,
+      restoreRate: throttle.restoreRate,
+    };
+  }
+
+  async waitIfNeeded(requiredUnits: number) {
+    const effectiveRate = this.status.restoreRate > 0 ? this.status.restoreRate : 500;
+    const deficit = requiredUnits - this.status.currentlyAvailable;
+    if (deficit <= 0) return;
+    const waitSeconds = Math.min(Math.ceil((deficit / effectiveRate) * 1.1), 3600);
+    console.log(
+      `Jobber budget low: ${this.status.currentlyAvailable}/${this.status.maximumAvailable} available, waiting ${waitSeconds}s for ~${requiredUnits} units`,
+    );
+    await sleep(waitSeconds * 1000);
+    const restored = waitSeconds * effectiveRate;
+    this.status.currentlyAvailable = Math.min(this.status.maximumAvailable, this.status.currentlyAvailable + restored);
+  }
+}
+
+const throttleManager = new SimpleThrottleManager();
+
+let cachedAccessToken = JOBBER_ACCESS_TOKEN;
+let cachedRefreshToken = JOBBER_REFRESH_TOKEN;
+
+function decodeJwtExp(token: string): number | null {
+  try {
+    const [, payload] = token.split(".");
+    if (!payload) return null;
+    const parsed = JSON.parse(Buffer.from(payload, "base64url").toString("utf8"));
+    return typeof parsed.exp === "number" ? parsed.exp : null;
+  } catch {
+    return null;
+  }
+}
+
+function isTokenExpired(token?: string | null): boolean {
+  if (!token) return true;
+  const exp = decodeJwtExp(token);
+  if (!exp) return false;
+  return Date.now() >= (exp - 300) * 1000;
+}
+
+async function refreshJobberAccessToken(): Promise<string> {
+  const clientId = JOBBER_CLIENT_ID ?? requireEnv("JOBBER_CLIENT_ID");
+  const clientSecret = JOBBER_CLIENT_SECRET ?? requireEnv("JOBBER_CLIENT_SECRET");
+  const refreshToken = cachedRefreshToken ?? requireEnv("JOBBER_REFRESH_TOKEN");
+
+  const response = await fetch("https://api.getjobber.com/api/oauth/token", {
+    method: "POST",
+    headers: {
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token",
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Jobber token refresh failed (${response.status}): ${await response.text()}`);
+  }
+
+  const payload = (await response.json()) as { access_token?: string; refresh_token?: string };
+  if (!payload.access_token) {
+    throw new Error("Jobber token refresh response missing access_token");
+  }
+
+  cachedAccessToken = payload.access_token;
+  if (payload.refresh_token) {
+    cachedRefreshToken = payload.refresh_token;
+  }
+  return cachedAccessToken;
+}
+
+async function getJobberAccessToken(): Promise<string> {
+  if (!isTokenExpired(cachedAccessToken)) {
+    return cachedAccessToken as string;
+  }
+  return refreshJobberAccessToken();
+}
 
 const NOTE_NODE_SELECTION = `
-  ... on QuoteNote {
+  ... on ClientNote {
     id
     message
     createdAt
@@ -22,28 +145,12 @@ const NOTE_NODE_SELECTION = `
         id
         userName: name { full first last }
       }
-      ... on Application {
-        id
-        applicationName: name
-      }
-      ... on Client {
-        id
-        clientName: name
-      }
     }
     lastEditedBy {
       __typename
       ... on User {
         id
         userName: name { full first last }
-      }
-      ... on Application {
-        id
-        applicationName: name
-      }
-      ... on Client {
-        id
-        clientName: name
       }
     }
   }
@@ -87,8 +194,16 @@ function mapQuoteNote(node: any): QuoteNote | null {
   };
 }
 
-async function runJobberQuery<T>(query: string): Promise<T> {
-  const token = JOBBER_ACCESS_TOKEN ?? requireEnv("JOBBER_ACCESS_TOKEN");
+function isAuthError(status: number, errors: string[]): boolean {
+  if (status === 401 || status === 403) return true;
+  return errors.some((message) => /(unauthorized|unauthenticated|forbidden|token)/i.test(message));
+}
+
+function isThrottledError(errors: string[]): boolean {
+  return errors.some((message) => /thrott/i.test(message));
+}
+
+async function fetchJobberResponse<T>(query: string, token: string): Promise<{ status: number; payload: JobberGraphQLResponse<T>; body: string }> {
   const response = await fetch(JOBBER_API_URL, {
     method: "POST",
     headers: {
@@ -99,18 +214,97 @@ async function runJobberQuery<T>(query: string): Promise<T> {
     body: JSON.stringify({ query }),
   });
 
-  if (!response.ok) {
-    throw new Error(`Jobber request failed (${response.status}): ${await response.text()}`);
+  const body = await response.text();
+  let payload: JobberGraphQLResponse<T>;
+  try {
+    payload = JSON.parse(body) as JobberGraphQLResponse<T>;
+  } catch {
+    if (!response.ok) {
+      throw new Error(`Jobber request failed (${response.status}): ${body}`);
+    }
+    throw new Error(`Jobber API returned non-JSON: ${body.slice(0, 200)}`);
   }
 
-  const payload = (await response.json()) as { data?: T; errors?: Array<{ message?: string }> };
-  if (payload.errors?.length) {
-    throw new Error(payload.errors.map((error) => error.message ?? "Unknown GraphQL error").join("; "));
+  throttleManager.update(payload);
+  return { status: response.status, payload, body };
+}
+
+async function runJobberQuery<T>(query: string): Promise<T> {
+  const estimatedCost = DEFAULT_QUERY_COST;
+  await throttleManager.waitIfNeeded(estimatedCost);
+
+  const attempt = async (token: string) => {
+    const { status, payload, body } = await fetchJobberResponse<T>(query, token);
+    const errors = payload.errors?.map((error) => error.message ?? "Unknown GraphQL error") ?? [];
+
+    if (!payload.data && isThrottledError(errors)) {
+      return {
+        kind: "throttled" as const,
+        requestedCost: payload.extensions?.cost?.requestedQueryCost ?? estimatedCost,
+        errors,
+      };
+    }
+
+    if (!payload.data && (status >= 400 || isAuthError(status, errors))) {
+      return {
+        kind: "auth" as const,
+        status,
+        body,
+        errors,
+      };
+    }
+
+    if (status >= 400) {
+      throw new Error(`Jobber request failed (${status}): ${body}`);
+    }
+
+    if (errors.length) {
+      if (isThrottledError(errors)) {
+        return {
+          kind: "throttled" as const,
+          requestedCost: payload.extensions?.cost?.requestedQueryCost ?? estimatedCost,
+          errors,
+        };
+      }
+      throw new Error(errors.join("; "));
+    }
+
+    if (payload.data == null) {
+      throw new Error("Jobber response did not include data");
+    }
+
+    return {
+      kind: "ok" as const,
+      data: payload.data,
+    };
+  };
+
+  let token = await getJobberAccessToken();
+  let result = await attempt(token);
+
+  if (result.kind === "auth") {
+    token = await refreshJobberAccessToken();
+    result = await attempt(token);
   }
-  if (payload.data == null) {
-    throw new Error("Jobber response did not include data");
+
+  if (result.kind === "throttled") {
+    console.log(`Jobber throttled. Waiting for budget recovery (~${result.requestedCost} units)...`);
+    await throttleManager.waitIfNeeded(result.requestedCost);
+    result = await attempt(token);
+    if (result.kind === "throttled") {
+      throw new Error(`Jobber THROTTLED on retry: ${result.errors.join('; ')}`);
+    }
+    if (result.kind === "auth") {
+      token = await refreshJobberAccessToken();
+      result = await attempt(token);
+    }
   }
-  return payload.data;
+
+  if (result.kind !== "ok") {
+    throw new Error(result.errors.join('; ') || 'Jobber query failed');
+  }
+
+  return result.data;
 }
 
 function mapDraftQuote(node: any, notes: QuoteNote[]): DraftQuote {
@@ -145,7 +339,7 @@ async function fetchQuoteNotesPage(
     quote(id: ${JSON.stringify(quoteId)}) {
       notes(
         first: ${JOBBER_NOTES_PAGE_SIZE}${afterClause}
-        sort: [{ key: CREATED_AT, direction: DESC }]
+        sort: [{ key: CREATED_AT, direction: DESCENDING }]
       ) {
         nodes {
           ${NOTE_NODE_SELECTION}
@@ -232,7 +426,7 @@ async function fetchDraftQuotePage(
         }
         notes(
           first: ${JOBBER_NOTES_PAGE_SIZE}
-          sort: [{ key: CREATED_AT, direction: DESC }]
+          sort: [{ key: CREATED_AT, direction: DESCENDING }]
         ) {
           nodes {
             ${NOTE_NODE_SELECTION}
@@ -277,7 +471,7 @@ export async function fetchDraftQuotes(limit = 100, pageSize = 10): Promise<Draf
   let hasNextPage = true;
 
   while (hasNextPage && quotes.length < limit) {
-    const batchSize = Math.min(pageSize, limit - quotes.length);
+    const batchSize = Math.min(Math.min(pageSize, MAX_PAGE_SIZE), limit - quotes.length);
     const page = await fetchDraftQuotePage(batchSize, after);
     quotes.push(...page.quotes);
     hasNextPage = page.hasNextPage;
