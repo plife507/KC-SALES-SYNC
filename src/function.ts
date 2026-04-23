@@ -1,6 +1,6 @@
 import type { Request, Response } from "@google-cloud/functions-framework";
 
-import { DEFAULT_SHEET_TITLE } from "./config.js";
+import { DEFAULT_SAMPLE_LIMIT, runtimeConfig } from "./config.js";
 import { runSample, runSheetInit, runSync } from "./index.js";
 
 type SyncRequestBody = {
@@ -30,13 +30,17 @@ export async function kcSalesSync(req: Request, res: Response) {
     const command = body.command ?? "sync";
 
     if (command === "sheet:init") {
-      const result = await runSheetInit(body.title ?? DEFAULT_SHEET_TITLE);
+      const result = await runSheetInit(body.title ?? runtimeConfig.sheetTitle);
       res.status(200).json(result);
       return;
     }
 
     if (command === "sample") {
-      const result = await runSample(body.limit ?? 5);
+      if (!runtimeConfig.runtime.allowDebugCommands) {
+        res.status(403).json({ error: "sample is disabled in this runtime. Enable ALLOW_DEBUG_COMMANDS=true to use it." });
+        return;
+      }
+      const result = await runSample(body.limit ?? DEFAULT_SAMPLE_LIMIT);
       res.status(200).json(result);
       return;
     }

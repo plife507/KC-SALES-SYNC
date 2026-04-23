@@ -1,0 +1,11 @@
+export declare const DEFAULT_SHEET_TITLE = "kc-sales-sync";
+export declare const DEFAULT_SHEET_TAB = "DRAFT";
+export declare const DEFAULT_QUOTE_LIMIT = 100;
+export declare const DEFAULT_QUOTE_PAGE_SIZE = 10;
+export declare const DEFAULT_SAMPLE_LIMIT = 5;
+export declare const DEFAULT_JOBBER_API_URL = "https://api.getjobber.com/api/graphql";
+export declare const DEFAULT_JOBBER_API_VERSION = "2025-04-16";
+export declare const DEFAULT_JOBBER_REQUEST_DELAY_MS = 400;
+export declare const DEFAULT_JOBBER_NOTES_PAGE_SIZE = 50;
+export declare const NO_NOTE_TEXT = "No note found";
+export declare const NO_NOTE_COMMENT = "No note was found for this draft quote during sync.";

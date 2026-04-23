@@ -9,7 +9,7 @@ export declare function runSync(options?: {
     pageSize?: number;
 }): Promise<{
     spreadsheetId: string;
-    tabName: string;
+    tabNames: string[];
     rowCount: number;
     pageSize: number;
     status: "ok";
@@ -20,7 +20,7 @@ export declare function runCommand(command: string): Promise<{
     spreadsheetUrl: string;
 } | import("./types.js").SheetRow[] | {
     spreadsheetId: string;
-    tabName: string;
+    tabNames: string[];
     rowCount: number;
     pageSize: number;
     status: "ok";

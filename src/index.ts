@@ -1,9 +1,9 @@
-import { DEFAULT_SHEET_TITLE, requireEnv } from "./config.js";
+import { DEFAULT_SAMPLE_LIMIT, requireEnv, runtimeConfig } from "./config.js";
 import { fetchDraftQuotes } from "./adapters/jobber.js";
 import { ensureSpreadsheet, writeRows } from "./adapters/sheets.js";
 import { quoteToSheetRow, rowsToSheetValues } from "./lib/touch.js";
 
-export async function runSheetInit(title = DEFAULT_SHEET_TITLE) {
+export async function runSheetInit(title: string = runtimeConfig.sheetTitle) {
   return ensureSpreadsheet(title);
 }
 
@@ -13,25 +13,35 @@ export async function runSync(options?: {
   limit?: number;
   pageSize?: number;
 }) {
-  const spreadsheetId = options?.spreadsheetId ?? requireEnv("SPREADSHEET_ID");
-  const tabName = options?.tabName ?? (process.env.SHEET_TAB?.trim() || "DRAFT");
-  const limit = options?.limit ?? Number(process.env.QUOTE_LIMIT?.trim() || "100");
-  const pageSize = options?.pageSize ?? Number(process.env.QUOTE_PAGE_SIZE?.trim() || "10");
+  const spreadsheetId = options?.spreadsheetId ?? runtimeConfig.spreadsheetId ?? requireEnv("SPREADSHEET_ID");
+  const targetTabNames = options?.tabName ? [options.tabName] : runtimeConfig.sync.tabNames;
+  const limit = options?.limit ?? runtimeConfig.sync.quoteLimit;
+  const pageSize = options?.pageSize ?? runtimeConfig.sync.quotePageSize;
   const quotes = await fetchDraftQuotes(limit, pageSize);
   const rows = quotes.map(quoteToSheetRow);
   const values = rowsToSheetValues(rows);
-  await writeRows(spreadsheetId, tabName, values);
-  return { spreadsheetId, tabName, rowCount: rows.length, pageSize, status: "ok" as const };
+
+  for (const tabName of targetTabNames) {
+    await writeRows(spreadsheetId, tabName, values);
+  }
+
+  return {
+    spreadsheetId,
+    tabNames: targetTabNames,
+    rowCount: rows.length,
+    pageSize,
+    status: "ok" as const,
+  };
 }
 
-export async function runSample(limit = 5) {
+export async function runSample(limit = DEFAULT_SAMPLE_LIMIT) {
   const quotes = await fetchDraftQuotes(limit);
   return quotes.map(quoteToSheetRow);
 }
 
 export async function runCommand(command: string) {
   if (command === "sheet:init") {
-    return runSheetInit(process.argv[3] ?? DEFAULT_SHEET_TITLE);
+    return runSheetInit(process.argv[3] ?? runtimeConfig.sheetTitle);
   }
 
   if (command === "sync") {
@@ -39,6 +49,9 @@ export async function runCommand(command: string) {
   }
 
   if (command === "sample") {
+    if (!runtimeConfig.runtime.allowDebugCommands) {
+      throw new Error("sample is disabled in this runtime. Enable ALLOW_DEBUG_COMMANDS=true to use it.");
+    }
     return runSample(5);
   }
 

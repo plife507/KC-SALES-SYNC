@@ -1,4 +1,4 @@
-const NO_NOTE_TEXT = "No note found";
+import { NO_NOTE_TEXT, draftSheetLayout } from "../config.js";
 const PACIFIC_FORMATTER = new Intl.DateTimeFormat("en-US", {
     timeZone: "America/Los_Angeles",
     year: "numeric",
@@ -93,23 +93,7 @@ export function quoteToSheetRow(quote) {
 }
 export function rowsToSheetValues(rows) {
     return [
-        [
-            "Quote Number",
-            "Quote Title",
-            "Client Name",
-            "Draft Created",
-            "Last Updated",
-            "Native Salesperson",
-            "KC Sales Rep",
-            "Lead Source",
-            "Quote Status",
-            "Last Note Created At",
-            "Last Note Edited At",
-            "Last Sales Touch At",
-            "Last Sales Touch By",
-            "Last Note Text",
-            "Last Sales Touch Helper",
-        ],
+        [...draftSheetLayout.headers],
         ...rows.map((row) => [
             row.quoteNumber,
             row.quoteTitle,

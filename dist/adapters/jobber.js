@@ -1,4 +1,4 @@
-import { JOBBER_ACCESS_TOKEN, JOBBER_API_URL, JOBBER_API_VERSION, JOBBER_CLIENT_ID, JOBBER_CLIENT_SECRET, JOBBER_NOTES_PAGE_SIZE, JOBBER_REFRESH_TOKEN, JOBBER_REQUEST_DELAY_MS, requireEnv, } from "../config.js";
+import { requireEnv, runtimeConfig } from "../config.js";
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_PAGE_SIZE = 10;
 const DEFAULT_QUERY_COST = 500;
@@ -31,8 +31,8 @@ class SimpleThrottleManager {
     }
 }
 const throttleManager = new SimpleThrottleManager();
-let cachedAccessToken = JOBBER_ACCESS_TOKEN;
-let cachedRefreshToken = JOBBER_REFRESH_TOKEN;
+let cachedAccessToken = runtimeConfig.jobber.accessToken;
+let cachedRefreshToken = runtimeConfig.jobber.refreshToken;
 function decodeJwtExp(token) {
     try {
         const [, payload] = token.split(".");
@@ -54,8 +54,8 @@ function isTokenExpired(token) {
     return Date.now() >= (exp - 300) * 1000;
 }
 async function refreshJobberAccessToken() {
-    const clientId = JOBBER_CLIENT_ID ?? requireEnv("JOBBER_CLIENT_ID");
-    const clientSecret = JOBBER_CLIENT_SECRET ?? requireEnv("JOBBER_CLIENT_SECRET");
+    const clientId = runtimeConfig.jobber.clientId ?? requireEnv("JOBBER_CLIENT_ID");
+    const clientSecret = runtimeConfig.jobber.clientSecret ?? requireEnv("JOBBER_CLIENT_SECRET");
     const refreshToken = cachedRefreshToken ?? requireEnv("JOBBER_REFRESH_TOKEN");
     const response = await fetch("https://api.getjobber.com/api/oauth/token", {
         method: "POST",
@@ -88,6 +88,13 @@ async function getJobberAccessToken() {
     }
     return refreshJobberAccessToken();
 }
+const NOTE_ACTOR_SELECTION = `
+  __typename
+  ... on User {
+    id
+    userName: name { full first last }
+  }
+`;
 const NOTE_NODE_SELECTION = `
   ... on ClientNote {
     id
@@ -95,18 +102,34 @@ const NOTE_NODE_SELECTION = `
     createdAt
     lastEditedAt
     createdBy {
-      __typename
-      ... on User {
-        id
-        userName: name { full first last }
-      }
+      ${NOTE_ACTOR_SELECTION}
     }
     lastEditedBy {
-      __typename
-      ... on User {
-        id
-        userName: name { full first last }
-      }
+      ${NOTE_ACTOR_SELECTION}
+    }
+  }
+  ... on QuoteNote {
+    id
+    message
+    createdAt
+    lastEditedAt
+    createdBy {
+      ${NOTE_ACTOR_SELECTION}
+    }
+    lastEditedBy {
+      ${NOTE_ACTOR_SELECTION}
+    }
+  }
+  ... on RequestNote {
+    id
+    message
+    createdAt
+    lastEditedAt
+    createdBy {
+      ${NOTE_ACTOR_SELECTION}
+    }
+    lastEditedBy {
+      ${NOTE_ACTOR_SELECTION}
     }
   }
 `;
@@ -123,7 +146,7 @@ function actorFromNode(node) {
     return {
         type: node.__typename ?? "Unknown",
         id: node.id,
-        name: node.applicationName ?? node.clientName ?? node.displayName ?? "",
+        name: "",
     };
 }
 function customFieldValue(field) {
@@ -142,7 +165,7 @@ function customFieldValue(field) {
     return "";
 }
 function mapQuoteNote(node) {
-    if (typeof node?.message !== "string" || typeof node?.createdAt !== "string")
+    if (!node?.id || typeof node.message !== "string" || typeof node.createdAt !== "string")
         return null;
     return {
         id: node.id,
@@ -162,12 +185,12 @@ function isThrottledError(errors) {
     return errors.some((message) => /thrott/i.test(message));
 }
 async function fetchJobberResponse(query, token) {
-    const response = await fetch(JOBBER_API_URL, {
+    const response = await fetch(runtimeConfig.jobber.apiUrl, {
         method: "POST",
         headers: {
             "content-type": "application/json",
             authorization: `Bearer ${token}`,
-            "x-jobber-graphql-version": JOBBER_API_VERSION,
+            "x-jobber-graphql-version": runtimeConfig.jobber.apiVersion,
         },
         body: JSON.stringify({ query }),
     });
@@ -238,7 +261,7 @@ async function runJobberQuery(query) {
         await throttleManager.waitIfNeeded(result.requestedCost);
         result = await attempt(token);
         if (result.kind === "throttled") {
-            throw new Error(`Jobber THROTTLED on retry: ${result.errors.join('; ')}`);
+            throw new Error(`Jobber THROTTLED on retry: ${result.errors.join("; ")}`);
         }
         if (result.kind === "auth") {
             token = await refreshJobberAccessToken();
@@ -246,14 +269,16 @@ async function runJobberQuery(query) {
         }
     }
     if (result.kind !== "ok") {
-        throw new Error(result.errors.join('; ') || 'Jobber query failed');
+        throw new Error(result.errors.join("; ") || "Jobber query failed");
     }
     return result.data;
 }
 function mapDraftQuote(node, notes) {
     const customFields = new Map();
     for (const field of node.customFields ?? []) {
-        customFields.set(field.label, customFieldValue(field));
+        if (field.label) {
+            customFields.set(field.label, customFieldValue(field));
+        }
     }
     return {
         id: node.id,
@@ -276,7 +301,7 @@ async function fetchQuoteNotesPage(quoteId, after) {
     const query = `query {
     quote(id: ${JSON.stringify(quoteId)}) {
       notes(
-        first: ${JOBBER_NOTES_PAGE_SIZE}${afterClause}
+        first: ${runtimeConfig.jobber.notesPageSize}${afterClause}
         sort: [{ key: CREATED_AT, direction: DESCENDING }]
       ) {
         nodes {
@@ -303,7 +328,7 @@ async function fetchAllQuoteNotes(quoteId, initialConnection) {
     let hasNextPage = Boolean(initialConnection?.pageInfo?.hasNextPage);
     let after = initialConnection?.pageInfo?.endCursor ?? undefined;
     while (hasNextPage && after) {
-        await sleep(JOBBER_REQUEST_DELAY_MS);
+        await sleep(runtimeConfig.jobber.requestDelayMs);
         const page = await fetchQuoteNotesPage(quoteId, after);
         notes.push(...page.notes);
         hasNextPage = page.hasNextPage;
@@ -344,7 +369,7 @@ async function fetchDraftQuotePage(first, after) {
           ... on CustomFieldArea { label valueArea { length width } }
         }
         notes(
-          first: ${JOBBER_NOTES_PAGE_SIZE}
+          first: ${runtimeConfig.jobber.notesPageSize}
           sort: [{ key: CREATED_AT, direction: DESCENDING }]
         ) {
           nodes {
@@ -375,7 +400,7 @@ async function fetchDraftQuotePage(first, after) {
         endCursor: data.quotes?.pageInfo?.endCursor ?? null,
     };
 }
-export async function fetchDraftQuotes(limit = 100, pageSize = 10) {
+export async function fetchDraftQuotes(limit = runtimeConfig.sync.quoteLimit, pageSize = runtimeConfig.sync.quotePageSize) {
     const quotes = [];
     let after;
     let hasNextPage = true;
@@ -386,7 +411,7 @@ export async function fetchDraftQuotes(limit = 100, pageSize = 10) {
         hasNextPage = page.hasNextPage;
         after = page.endCursor ?? undefined;
         if (hasNextPage) {
-            await sleep(JOBBER_REQUEST_DELAY_MS);
+            await sleep(runtimeConfig.jobber.requestDelayMs);
         }
     }
     return quotes;

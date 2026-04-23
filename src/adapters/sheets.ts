@@ -3,19 +3,9 @@ import { homedir } from "node:os";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import { google, sheets_v4 } from "googleapis";
-import {
-  GOG_ACCOUNT,
-  GOG_CREDENTIALS_PATH,
-  GOOGLE_CLIENT_ID,
-  GOOGLE_CLIENT_SECRET,
-  GOOGLE_REFRESH_TOKEN,
-} from "../config.js";
+import { NO_NOTE_TEXT, resolveSheetLayout, runtimeConfig } from "../config.js";
 
 const execFileAsync = promisify(execFile);
-const HELPER_COLUMN_INDEX = 14;
-const HELPER_COLUMN_LETTER = "O";
-const CONDITIONAL_TARGET_START_COLUMN_INDEX = 11;
-const CONDITIONAL_TARGET_END_COLUMN_INDEX = 12;
 
 type Color = { red: number; green: number; blue: number };
 
@@ -25,22 +15,28 @@ async function getSheetsClient(): Promise<sheets_v4.Sheets> {
 }
 
 async function buildGoogleAuth() {
-  if (GOOGLE_CLIENT_ID && GOOGLE_CLIENT_SECRET && GOOGLE_REFRESH_TOKEN) {
-    const oauth2 = new google.auth.OAuth2(GOOGLE_CLIENT_ID, GOOGLE_CLIENT_SECRET);
-    oauth2.setCredentials({ refresh_token: GOOGLE_REFRESH_TOKEN });
+  const { clientId, clientSecret, refreshToken, gogCredentialsPath, gogAccount } = runtimeConfig.google;
+
+  if (clientId && clientSecret && refreshToken) {
+    const oauth2 = new google.auth.OAuth2(clientId, clientSecret);
+    oauth2.setCredentials({ refresh_token: refreshToken });
     return oauth2;
   }
 
-  const credentialsPath = GOG_CREDENTIALS_PATH ?? join(homedir(), ".config", "gogcli", "credentials.json");
+  if (!runtimeConfig.runtime.allowLocalSheetsFallback) {
+    throw new Error("Missing direct Google auth env for this runtime. Set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REFRESH_TOKEN.");
+  }
+
+  const credentialsPath = gogCredentialsPath ?? join(homedir(), ".config", "gogcli", "credentials.json");
   const credentials = JSON.parse(await import("node:fs/promises").then((fs) => fs.readFile(credentialsPath, "utf8")));
   const { client_id, client_secret } = credentials as { client_id: string; client_secret: string };
 
   const tempTokenPath = await import("node:fs/promises").then(async (fs) => {
     const path = `/tmp/gog-token-${process.pid}-${Date.now()}.json`;
-    if (!GOG_ACCOUNT) {
+    if (!gogAccount) {
       throw new Error("Missing Google auth env. Set GOOGLE_CLIENT_ID/GOOGLE_CLIENT_SECRET/GOOGLE_REFRESH_TOKEN or GOG_ACCOUNT.");
     }
-    await execFileAsync("gog", ["auth", "tokens", "export", GOG_ACCOUNT, "--out", path, "--overwrite", "--no-input"], {
+    await execFileAsync("gog", ["auth", "tokens", "export", gogAccount, "--out", path, "--overwrite", "--no-input"], {
       env: process.env,
       maxBuffer: 10 * 1024 * 1024,
     });
@@ -67,17 +63,21 @@ function backgroundFormat(color: Color) {
   };
 }
 
-const NO_NOTE_RULE = {
-  formula: `=$${HELPER_COLUMN_LETTER}2=""`,
-  color: rgb(234, 234, 234),
-};
+function buildConditionalRules(helperColumnLetter: string) {
+  const noNoteRule = {
+    formula: `=$${helperColumnLetter}2=""`,
+    color: rgb(234, 234, 234),
+  };
 
-const AGE_RULES = [
-  { formula: `=AND(ISNUMBER($${HELPER_COLUMN_LETTER}2),$${HELPER_COLUMN_LETTER}2>=NOW()-2)`, color: rgb(217, 234, 211) },
-  { formula: `=AND(ISNUMBER($${HELPER_COLUMN_LETTER}2),$${HELPER_COLUMN_LETTER}2<NOW()-2,$${HELPER_COLUMN_LETTER}2>=NOW()-7)`, color: rgb(255, 242, 204) },
-  { formula: `=AND(ISNUMBER($${HELPER_COLUMN_LETTER}2),$${HELPER_COLUMN_LETTER}2<NOW()-7,$${HELPER_COLUMN_LETTER}2>=NOW()-14)`, color: rgb(252, 229, 205) },
-  { formula: `=AND(ISNUMBER($${HELPER_COLUMN_LETTER}2),$${HELPER_COLUMN_LETTER}2<NOW()-14)`, color: rgb(244, 204, 204) },
-] as const;
+  const ageRules = [
+    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2>=NOW()-2)`, color: rgb(217, 234, 211) },
+    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-2,$${helperColumnLetter}2>=NOW()-7)`, color: rgb(255, 242, 204) },
+    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-7,$${helperColumnLetter}2>=NOW()-14)`, color: rgb(252, 229, 205) },
+    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-14)`, color: rgb(244, 204, 204) },
+  ] as const;
+
+  return { noNoteRule, ageRules };
+}
 
 async function getSpreadsheetSheet(
   sheets: sheets_v4.Sheets,
@@ -125,8 +125,9 @@ export async function ensureTab(spreadsheetId: string, tabName: string): Promise
 
 export async function writeRows(spreadsheetId: string, tabName: string, values: string[][]): Promise<void> {
   const sheets = await getSheetsClient();
+  const layout = resolveSheetLayout(tabName);
   await ensureTab(spreadsheetId, tabName);
-  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `${tabName}!A:O` });
+  await sheets.spreadsheets.values.clear({ spreadsheetId, range: `${tabName}!${layout.clearRange}` });
   await sheets.spreadsheets.values.update({
     spreadsheetId,
     range: `${tabName}!A1`,
@@ -140,6 +141,9 @@ export async function writeRows(spreadsheetId: string, tabName: string, values: 
 export async function applySheetStyle(spreadsheetId: string, tabName: string, rowCount: number): Promise<void> {
   const sheets = await getSheetsClient();
   const sheetId = await getSheetId(sheets, spreadsheetId, tabName);
+  const layout = resolveSheetLayout(tabName);
+  const dataColumnCount = layout.headers.length - 1;
+  const totalColumnCount = layout.headers.length;
 
   const headerFormat = {
     backgroundColor: { red: 26 / 255, green: 115 / 255, blue: 232 / 255 },
@@ -190,20 +194,20 @@ export async function applySheetStyle(spreadsheetId: string, tabName: string, ro
         properties: {
           sheetId,
           gridProperties: {
-            frozenRowCount: 1,
-            frozenColumnCount: 3,
+            frozenRowCount: layout.frozenRowCount,
+            frozenColumnCount: layout.frozenColumnCount,
           },
         },
         fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
       },
     },
-    repeatCellRequest(sheetId, 0, rowCount, 0, 14, { userEnteredFormat: { borders: lightBlueBorders } }, "userEnteredFormat.borders"),
+    repeatCellRequest(sheetId, 0, rowCount, 0, dataColumnCount, { userEnteredFormat: { borders: lightBlueBorders } }, "userEnteredFormat.borders"),
     repeatCellRequest(
       sheetId,
       0,
       1,
       0,
-      14,
+      dataColumnCount,
       { userEnteredFormat: headerFormat },
       "userEnteredFormat.backgroundColor,userEnteredFormat.textFormat,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy",
     ),
@@ -216,7 +220,7 @@ export async function applySheetStyle(spreadsheetId: string, tabName: string, ro
         1,
         rowCount,
         0,
-        14,
+        dataColumnCount,
         { userEnteredFormat: bodyFormat },
         "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment",
       ),
@@ -269,8 +273,8 @@ export async function applySheetStyle(spreadsheetId: string, tabName: string, ro
         sheetId,
         1,
         rowCount,
-        13,
-        14,
+        layout.noteColumnIndex,
+        layout.noteColumnIndex + 1,
         { userEnteredFormat: noteFormat },
         "userEnteredFormat.horizontalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.verticalAlignment",
       ),
@@ -278,8 +282,8 @@ export async function applySheetStyle(spreadsheetId: string, tabName: string, ro
         sheetId,
         1,
         rowCount,
-        14,
-        15,
+        layout.helperColumnIndex,
+        layout.helperColumnIndex + 1,
         { userEnteredFormat: { numberFormat: { type: "DATE_TIME", pattern: "yyyy-mm-dd hh:mm:ss" } } },
         "userEnteredFormat.numberFormat",
       ),
@@ -287,19 +291,13 @@ export async function applySheetStyle(spreadsheetId: string, tabName: string, ro
     );
   }
 
-  requests.push(
-    setColumnWidthRequest(sheetId, 0, 1, 105),
-    setColumnWidthRequest(sheetId, 1, 2, 230),
-    setColumnWidthRequest(sheetId, 2, 3, 220),
-    setColumnWidthRequest(sheetId, 3, 5, 170),
-    setColumnWidthRequest(sheetId, 5, 7, 190),
-    setColumnWidthRequest(sheetId, 7, 9, 115),
-    setColumnWidthRequest(sheetId, 9, 12, 170),
-    setColumnWidthRequest(sheetId, 12, 13, 200),
-    setColumnWidthRequest(sheetId, 13, 14, 620),
-    setColumnWidthRequest(sheetId, 14, 15, 140),
-    hideColumnRequest(sheetId, HELPER_COLUMN_INDEX, HELPER_COLUMN_INDEX + 1),
-  );
+  layout.columnWidths.forEach(({ startIndex, endIndex, pixelSize }) => {
+    requests.push(setColumnWidthRequest(sheetId, startIndex, endIndex, pixelSize));
+  });
+
+  layout.hiddenColumnIndexes.forEach((index) => {
+    requests.push(hideColumnRequest(sheetId, index, index + 1));
+  });
 
   await sheets.spreadsheets.batchUpdate({
     spreadsheetId,
@@ -385,11 +383,13 @@ function hideColumnRequest(sheetId: number, startIndex: number, endIndex: number
 
 async function applyConditionalAging(spreadsheetId: string, tabName: string, rowCount: number): Promise<void> {
   const sheets = await getSheetsClient();
+  const layout = resolveSheetLayout(tabName);
+  const { noNoteRule, ageRules } = buildConditionalRules(layout.helperColumnLetter);
   const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets(properties,conditionalFormats)" });
   const match = (meta.data.sheets ?? []).find((sheet) => sheet.properties?.title === tabName);
   const sheetId = match?.properties?.sheetId;
   if (typeof sheetId !== "number") throw new Error(`Tab not found: ${tabName}`);
-  const managedFormulas = new Set([NO_NOTE_RULE.formula, ...AGE_RULES.map((rule) => rule.formula)]);
+  const managedFormulas = new Set([noNoteRule.formula, ...ageRules.map((rule) => rule.formula)]);
   const existingRules = match?.conditionalFormats ?? [];
   const managedRuleIndexes = existingRules
     .map((rule, index) => ({ rule, index }))
@@ -399,8 +399,8 @@ async function applyConditionalAging(spreadsheetId: string, tabName: string, row
       return (
         formula != null &&
         managedFormulas.has(formula) &&
-        range?.startColumnIndex === CONDITIONAL_TARGET_START_COLUMN_INDEX &&
-        range?.endColumnIndex === CONDITIONAL_TARGET_END_COLUMN_INDEX
+        range?.startColumnIndex === layout.conditionalTargetColumnIndex &&
+        range?.endColumnIndex === layout.conditionalTargetColumnIndex + 1
       );
     })
     .map(({ index }) => index)
@@ -414,7 +414,7 @@ async function applyConditionalAging(spreadsheetId: string, tabName: string, row
   }));
   const insertionIndex = existingRules.length - managedRuleIndexes.length;
 
-  [NO_NOTE_RULE, ...AGE_RULES].forEach((rule, idx) => {
+  [noNoteRule, ...ageRules].forEach((rule, idx) => {
     requests.push({
       addConditionalFormatRule: {
         index: insertionIndex + idx,
@@ -424,8 +424,8 @@ async function applyConditionalAging(spreadsheetId: string, tabName: string, row
               sheetId,
               startRowIndex: 1,
               endRowIndex: rowCount,
-              startColumnIndex: CONDITIONAL_TARGET_START_COLUMN_INDEX,
-              endColumnIndex: CONDITIONAL_TARGET_END_COLUMN_INDEX,
+              startColumnIndex: layout.conditionalTargetColumnIndex,
+              endColumnIndex: layout.conditionalTargetColumnIndex + 1,
             },
           ],
           booleanRule: {
@@ -449,37 +449,47 @@ async function applyConditionalAging(spreadsheetId: string, tabName: string, row
 async function ensureNoNoteComments(spreadsheetId: string, tabName: string, rowCount: number): Promise<void> {
   const sheets = await getSheetsClient();
   const sheetId = await getSheetId(sheets, spreadsheetId, tabName);
+  const layout = resolveSheetLayout(tabName);
   const response = await sheets.spreadsheets.get({
     spreadsheetId,
     includeGridData: true,
-    ranges: [`${tabName}!N2:N${rowCount}`],
+    ranges: [`${tabName}!${layout.noteColumnLetter}2:${layout.noteColumnLetter}${rowCount}`],
   });
   const rowData = response.data.sheets?.[0]?.data?.[0]?.rowData ?? [];
-  const requests: sheets_v4.Schema$Request[] = rowData.map((row, index) => {
-    const formattedValue = row.values?.[0]?.formattedValue ?? "";
-    const hasNoNote = formattedValue.trim() === "No note found";
+  const requests: sheets_v4.Schema$Request[] = [];
 
-    return {
+  rowData.forEach((row, index) => {
+    const cell = row.values?.[0];
+    const formattedValue = cell?.formattedValue ?? "";
+    const existingNote = cell?.note ?? null;
+    const hasNoNote = formattedValue.trim() === NO_NOTE_TEXT;
+    const desiredNote = hasNoNote ? layout.defaultNoNoteComment : null;
+
+    if (existingNote === desiredNote) {
+      return;
+    }
+
+    requests.push({
       updateCells: {
         range: {
           sheetId,
           startRowIndex: index + 1,
           endRowIndex: index + 2,
-          startColumnIndex: 13,
-          endColumnIndex: 14,
+          startColumnIndex: layout.noteColumnIndex,
+          endColumnIndex: layout.noteColumnIndex + 1,
         },
         rows: [
           {
             values: [
               {
-                note: hasNoNote ? "No note was found for this draft quote during sync." : null,
+                note: desiredNote,
               },
             ],
           },
         ],
         fields: "note",
       },
-    };
+    });
   });
 
   if (requests.length > 0) {
@@ -497,11 +507,12 @@ async function getSheetId(sheets: sheets_v4.Sheets, spreadsheetId: string, tabNa
   return id;
 }
 
-export async function readRows(spreadsheetId: string, tabName: string, range = "A1:N20"): Promise<string[][]> {
+export async function readRows(spreadsheetId: string, tabName: string, range?: string): Promise<string[][]> {
   const sheets = await getSheetsClient();
+  const layout = resolveSheetLayout(tabName);
   const response = await sheets.spreadsheets.values.get({
     spreadsheetId,
-    range: `${tabName}!${range}`,
+    range: `${tabName}!${range ?? layout.readPreviewRange}`,
   });
   return (response.data.values ?? []).map((row) => row.map((cell) => String(cell)));
 }

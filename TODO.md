@@ -29,6 +29,13 @@
 - [x] Remove sensitive readback payloads from scheduled sync logs
 - [x] Add Cloud Run entrypoint following the `kc-pp-sync` deploy pattern
 
+## Phase 3 — Refactor hardening
+- [x] Support syncing the same dataset into multiple same-shape sales tabs
+- [x] Tighten cloud/debug runtime behavior so debug/sample is opt-in
+- [x] Disable local `gog` Sheets fallback by default in Cloud Run
+- [x] Make no-note comment writes idempotent/safer
+- [x] Verify live conditional-format scope on quote `110976`
+
 ## Current status
 - Repo created
 - TypeScript scaffold created
@@ -43,3 +50,6 @@
 - Cloud Run entrypoint now follows the `kc-pp-sync` source-deploy pattern
 - Conditional aging colors now apply only to column L
 - Sync output is summary-only to avoid logging note payloads
+- Same-shape multi-tab sync is now env-driven via `SHEET_TABS`
+- Debug/sample access is now explicitly gated
+- Live check on quote `110976` confirms only column L is colored

@@ -16,7 +16,7 @@ Build a sheet-oriented sync that answers:
 ## Prototype scope
 
 Run as a Cloud Run source-deployed service using env-provided Jobber and Google credentials.
-Local `gog` auth remains an optional fallback for development convenience.
+Local `gog` auth remains an optional fallback for development convenience, but it is disabled by default in Cloud Run.
 
 ## Current architecture
 
@@ -45,8 +45,11 @@ Local `gog` auth remains an optional fallback for development convenience.
 - `JOBBER_REQUEST_DELAY_MS` default: `400`
 - `JOBBER_NOTES_PAGE_SIZE` default: `50`
 - `SHEET_TAB` default: `DRAFT`
+- `SHEET_TABS` optional comma-separated list of same-shape tabs to keep in sync with the same dataset
 - `QUOTE_LIMIT` default: `100`
 - `QUOTE_PAGE_SIZE` default: `10`
+- `ALLOW_DEBUG_COMMANDS` default: `false`; required for `sample` in HTTP/CLI runtime
+- `ALLOW_LOCAL_SHEETS_FALLBACK` default: `true` locally, `false` in Cloud Run
 - `GOG_ACCOUNT`, `GOG_CREDENTIALS_PATH` for local `gog`-backed Sheets auth fallback only
 
 ## Commands
@@ -86,10 +89,14 @@ Manual HTTP trigger shape:
 { "command": "sync" }
 ```
 
+Notes:
+- `sync` writes the same output to every tab listed in `SHEET_TABS` when present.
+- `sample` is for debug use and is blocked unless `ALLOW_DEBUG_COMMANDS=true`.
+
 Optional body fields:
 
 - `spreadsheetId`
-- `tabName`
+- `tabName` (single-tab override; otherwise `SHEET_TABS` or `SHEET_TAB` is used)
 - `limit`
 - `pageSize`
 - `title` for `sheet:init`
