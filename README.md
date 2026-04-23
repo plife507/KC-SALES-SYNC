@@ -44,7 +44,7 @@ Local `gog` auth remains an optional fallback for development convenience.
 - `JOBBER_API_VERSION` default: `2025-04-16`
 - `JOBBER_REQUEST_DELAY_MS` default: `400`
 - `JOBBER_NOTES_PAGE_SIZE` default: `50`
-- `SHEET_TAB` default: `Draft Quote Sales Touch`
+- `SHEET_TAB` default: `DRAFT`
 - `QUOTE_LIMIT` default: `100`
 - `QUOTE_PAGE_SIZE` default: `10`
 - `GOG_ACCOUNT`, `GOG_CREDENTIALS_PATH` for local `gog`-backed Sheets auth fallback only

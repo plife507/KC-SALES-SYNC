@@ -9,14 +9,6 @@ const HELPER_COLUMN_INDEX = 14;
 const HELPER_COLUMN_LETTER = "O";
 const CONDITIONAL_TARGET_START_COLUMN_INDEX = 11;
 const CONDITIONAL_TARGET_END_COLUMN_INDEX = 12;
-async function runGog(args) {
-    const accountArgs = GOG_ACCOUNT ? ["--account", GOG_ACCOUNT] : [];
-    const { stdout } = await execFileAsync("gog", [...args, ...accountArgs, "--json", "--no-input"], {
-        env: process.env,
-        maxBuffer: 10 * 1024 * 1024,
-    });
-    return JSON.parse(stdout);
-}
 async function getSheetsClient() {
     const auth = await buildGoogleAuth();
     return google.sheets({ version: "v4", auth });
@@ -69,27 +61,58 @@ const AGE_RULES = [
     { formula: `=AND(ISNUMBER($${HELPER_COLUMN_LETTER}2),$${HELPER_COLUMN_LETTER}2<NOW()-7,$${HELPER_COLUMN_LETTER}2>=NOW()-14)`, color: rgb(252, 229, 205) },
     { formula: `=AND(ISNUMBER($${HELPER_COLUMN_LETTER}2),$${HELPER_COLUMN_LETTER}2<NOW()-14)`, color: rgb(244, 204, 204) },
 ];
+async function getSpreadsheetSheet(sheets, spreadsheetId, tabName, fields = "sheets.properties") {
+    const meta = await sheets.spreadsheets.get({ spreadsheetId, fields });
+    return (meta.data.sheets ?? []).find((sheet) => sheet.properties?.title === tabName) ?? null;
+}
 export async function ensureSpreadsheet(title) {
-    const data = await runGog(["sheets", "create", title]);
-    const id = data.spreadsheetId ?? data.id ?? data.sheetId ?? "";
-    const url = data.spreadsheetUrl ?? data.url ?? `https://docs.google.com/spreadsheets/d/${id}`;
+    const sheets = await getSheetsClient();
+    const response = await sheets.spreadsheets.create({
+        requestBody: {
+            properties: { title },
+        },
+        fields: "spreadsheetId,spreadsheetUrl",
+    });
+    const id = response.data.spreadsheetId ?? "";
+    const url = response.data.spreadsheetUrl ?? `https://docs.google.com/spreadsheets/d/${id}`;
     return { spreadsheetId: id, spreadsheetUrl: url };
 }
 export async function ensureTab(spreadsheetId, tabName) {
-    const meta = await runGog(["sheets", "metadata", spreadsheetId]);
-    const titles = (meta.sheets ?? []).map((s) => s.properties?.title).filter(Boolean);
-    if (!titles.includes(tabName)) {
-        await runGog(["sheets", "add-tab", spreadsheetId, tabName]);
-    }
+    const sheets = await getSheetsClient();
+    const existing = await getSpreadsheetSheet(sheets, spreadsheetId, tabName);
+    if (existing)
+        return;
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: {
+            requests: [
+                {
+                    addSheet: {
+                        properties: {
+                            title: tabName,
+                        },
+                    },
+                },
+            ],
+        },
+    });
 }
 export async function writeRows(spreadsheetId, tabName, values) {
+    const sheets = await getSheetsClient();
     await ensureTab(spreadsheetId, tabName);
-    await runGog(["sheets", "clear", spreadsheetId, `${tabName}!A:O`]);
-    await runGog(["sheets", "update", spreadsheetId, `${tabName}!A1`, "--values-json", JSON.stringify(values), "--input", "USER_ENTERED"]);
+    await sheets.spreadsheets.values.clear({ spreadsheetId, range: `${tabName}!A:O` });
+    await sheets.spreadsheets.values.update({
+        spreadsheetId,
+        range: `${tabName}!A1`,
+        valueInputOption: "USER_ENTERED",
+        requestBody: { values },
+    });
     await applySheetStyle(spreadsheetId, tabName, Math.max(values.length, 2));
     await applyConditionalAging(spreadsheetId, tabName, Math.max(values.length, 2));
 }
 export async function applySheetStyle(spreadsheetId, tabName, rowCount) {
+    const sheets = await getSheetsClient();
+    const sheetId = await getSheetId(sheets, spreadsheetId, tabName);
     const headerFormat = {
         backgroundColor: { red: 26 / 255, green: 115 / 255, blue: 232 / 255 },
         textFormat: { bold: true, foregroundColor: { red: 1, green: 1, blue: 1 } },
@@ -126,55 +149,88 @@ export async function applySheetStyle(spreadsheetId, tabName, rowCount) {
         left: { style: "SOLID", color: { red: 189 / 255, green: 215 / 255, blue: 238 / 255 } },
         right: { style: "SOLID", color: { red: 189 / 255, green: 215 / 255, blue: 238 / 255 } },
     };
-    await runGog(["sheets", "freeze", spreadsheetId, "--sheet", tabName, "--rows", "1", "--cols", "3"]);
-    await runGog(["sheets", "format", spreadsheetId, `${tabName}!A1:N${rowCount}`, "--format-json", JSON.stringify({ borders: lightBlueBorders }), "--format-fields", "borders"]);
-    await runGog(["sheets", "format", spreadsheetId, `${tabName}!A1:N1`, "--format-json", JSON.stringify(headerFormat), "--format-fields", "backgroundColor,textFormat,horizontalAlignment,verticalAlignment,wrapStrategy"]);
-    if (rowCount > 1) {
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!A2:N${rowCount}`, "--format-json", JSON.stringify(bodyFormat), "--format-fields", "horizontalAlignment,verticalAlignment"]);
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!A2:A${rowCount}`, "--format-json", JSON.stringify(blackLinkFormat), "--format-fields", "textFormat.foregroundColor,horizontalAlignment,verticalAlignment"]);
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!C2:C${rowCount}`, "--format-json", JSON.stringify(blackLinkFormat), "--format-fields", "textFormat.foregroundColor,horizontalAlignment,verticalAlignment"]);
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!B2:C${rowCount}`, "--format-json", JSON.stringify(compactTextFormat), "--format-fields", "horizontalAlignment,wrapStrategy,verticalAlignment"]);
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!D2:L${rowCount}`, "--format-json", JSON.stringify(dateFormat), "--format-fields", "horizontalAlignment,verticalAlignment"]);
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!M2:M${rowCount}`, "--format-json", JSON.stringify(compactTextFormat), "--format-fields", "horizontalAlignment,wrapStrategy,verticalAlignment"]);
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!N2:N${rowCount}`, "--format-json", JSON.stringify(noteFormat), "--format-fields", "horizontalAlignment,wrapStrategy,verticalAlignment"]);
-        await runGog(["sheets", "format", spreadsheetId, `${tabName}!O2:O${rowCount}`, "--format-json", JSON.stringify({ numberFormat: { type: "DATE_TIME", pattern: "yyyy-mm-dd hh:mm:ss" } }), "--format-fields", "numberFormat"]);
-        await ensureNoNoteComments(spreadsheetId, tabName, rowCount);
-        await runGog(["sheets", "resize-rows", spreadsheetId, `${tabName}!2:${rowCount}`, "--auto"]);
-    }
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!A:A`, "--width", "105"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!B:B`, "--width", "230"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!C:C`, "--width", "220"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!D:E`, "--width", "170"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!F:G`, "--width", "190"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!H:I`, "--width", "115"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!J:L`, "--width", "170"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!M:M`, "--width", "200"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!N:N`, "--width", "620"]);
-    await runGog(["sheets", "resize-columns", spreadsheetId, `${tabName}!O:O`, "--width", "140"]);
-    await hideHelperColumn(spreadsheetId, tabName);
-}
-async function hideHelperColumn(spreadsheetId, tabName) {
-    const sheets = await getSheetsClient();
-    const sheetId = await getSheetId(sheets, spreadsheetId, tabName);
-    await sheets.spreadsheets.batchUpdate({
-        spreadsheetId,
-        requestBody: {
-            requests: [
-                {
-                    updateDimensionProperties: {
-                        range: {
-                            sheetId,
-                            dimension: "COLUMNS",
-                            startIndex: HELPER_COLUMN_INDEX,
-                            endIndex: HELPER_COLUMN_INDEX + 1,
-                        },
-                        properties: { hiddenByUser: true },
-                        fields: "hiddenByUser",
+    const requests = [
+        {
+            updateSheetProperties: {
+                properties: {
+                    sheetId,
+                    gridProperties: {
+                        frozenRowCount: 1,
+                        frozenColumnCount: 3,
                     },
                 },
-            ],
+                fields: "gridProperties.frozenRowCount,gridProperties.frozenColumnCount",
+            },
         },
+        repeatCellRequest(sheetId, 0, rowCount, 0, 14, { userEnteredFormat: { borders: lightBlueBorders } }, "userEnteredFormat.borders"),
+        repeatCellRequest(sheetId, 0, 1, 0, 14, { userEnteredFormat: headerFormat }, "userEnteredFormat.backgroundColor,userEnteredFormat.textFormat,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment,userEnteredFormat.wrapStrategy"),
+    ];
+    if (rowCount > 1) {
+        requests.push(repeatCellRequest(sheetId, 1, rowCount, 0, 14, { userEnteredFormat: bodyFormat }, "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment"), repeatCellRequest(sheetId, 1, rowCount, 0, 1, { userEnteredFormat: blackLinkFormat }, "userEnteredFormat.textFormat.foregroundColor,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment"), repeatCellRequest(sheetId, 1, rowCount, 2, 3, { userEnteredFormat: blackLinkFormat }, "userEnteredFormat.textFormat.foregroundColor,userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment"), repeatCellRequest(sheetId, 1, rowCount, 1, 3, { userEnteredFormat: compactTextFormat }, "userEnteredFormat.horizontalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.verticalAlignment"), repeatCellRequest(sheetId, 1, rowCount, 3, 12, { userEnteredFormat: dateFormat }, "userEnteredFormat.horizontalAlignment,userEnteredFormat.verticalAlignment"), repeatCellRequest(sheetId, 1, rowCount, 12, 13, { userEnteredFormat: compactTextFormat }, "userEnteredFormat.horizontalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.verticalAlignment"), repeatCellRequest(sheetId, 1, rowCount, 13, 14, { userEnteredFormat: noteFormat }, "userEnteredFormat.horizontalAlignment,userEnteredFormat.wrapStrategy,userEnteredFormat.verticalAlignment"), repeatCellRequest(sheetId, 1, rowCount, 14, 15, { userEnteredFormat: { numberFormat: { type: "DATE_TIME", pattern: "yyyy-mm-dd hh:mm:ss" } } }, "userEnteredFormat.numberFormat"), autoResizeRowsRequest(sheetId, 1, rowCount));
+    }
+    requests.push(setColumnWidthRequest(sheetId, 0, 1, 105), setColumnWidthRequest(sheetId, 1, 2, 230), setColumnWidthRequest(sheetId, 2, 3, 220), setColumnWidthRequest(sheetId, 3, 5, 170), setColumnWidthRequest(sheetId, 5, 7, 190), setColumnWidthRequest(sheetId, 7, 9, 115), setColumnWidthRequest(sheetId, 9, 12, 170), setColumnWidthRequest(sheetId, 12, 13, 200), setColumnWidthRequest(sheetId, 13, 14, 620), setColumnWidthRequest(sheetId, 14, 15, 140), hideColumnRequest(sheetId, HELPER_COLUMN_INDEX, HELPER_COLUMN_INDEX + 1));
+    await sheets.spreadsheets.batchUpdate({
+        spreadsheetId,
+        requestBody: { requests },
     });
+    if (rowCount > 1) {
+        await ensureNoNoteComments(spreadsheetId, tabName, rowCount);
+    }
+}
+function repeatCellRequest(sheetId, startRowIndex, endRowIndex, startColumnIndex, endColumnIndex, cell, fields) {
+    return {
+        repeatCell: {
+            range: {
+                sheetId,
+                startRowIndex,
+                endRowIndex,
+                startColumnIndex,
+                endColumnIndex,
+            },
+            cell,
+            fields,
+        },
+    };
+}
+function setColumnWidthRequest(sheetId, startIndex, endIndex, pixelSize) {
+    return {
+        updateDimensionProperties: {
+            range: {
+                sheetId,
+                dimension: "COLUMNS",
+                startIndex,
+                endIndex,
+            },
+            properties: { pixelSize },
+            fields: "pixelSize",
+        },
+    };
+}
+function autoResizeRowsRequest(sheetId, startIndex, endIndex) {
+    return {
+        autoResizeDimensions: {
+            dimensions: {
+                sheetId,
+                dimension: "ROWS",
+                startIndex,
+                endIndex,
+            },
+        },
+    };
+}
+function hideColumnRequest(sheetId, startIndex, endIndex) {
+    return {
+        updateDimensionProperties: {
+            range: {
+                sheetId,
+                dimension: "COLUMNS",
+                startIndex,
+                endIndex,
+            },
+            properties: { hiddenByUser: true },
+            fields: "hiddenByUser",
+        },
+    };
 }
 async function applyConditionalAging(spreadsheetId, tabName, rowCount) {
     const sheets = await getSheetsClient();
@@ -237,11 +293,10 @@ async function applyConditionalAging(spreadsheetId, tabName, rowCount) {
 async function ensureNoNoteComments(spreadsheetId, tabName, rowCount) {
     const sheets = await getSheetsClient();
     const sheetId = await getSheetId(sheets, spreadsheetId, tabName);
-    const range = `${tabName}!N2:N${rowCount}`;
     const response = await sheets.spreadsheets.get({
         spreadsheetId,
         includeGridData: true,
-        ranges: [range],
+        ranges: [`${tabName}!N2:N${rowCount}`],
     });
     const rowData = response.data.sheets?.[0]?.data?.[0]?.rowData ?? [];
     const requests = rowData.map((row, index) => {
@@ -277,15 +332,17 @@ async function ensureNoNoteComments(spreadsheetId, tabName, rowCount) {
     }
 }
 async function getSheetId(sheets, spreadsheetId, tabName) {
-    const meta = await sheets.spreadsheets.get({ spreadsheetId, fields: "sheets.properties" });
-    const match = (meta.data.sheets ?? []).find((sheet) => sheet.properties?.title === tabName);
+    const match = await getSpreadsheetSheet(sheets, spreadsheetId, tabName, "sheets.properties");
     const id = match?.properties?.sheetId;
     if (typeof id !== "number")
         throw new Error(`Tab not found: ${tabName}`);
     return id;
 }
 export async function readRows(spreadsheetId, tabName, range = "A1:N20") {
-    const data = await runGog(["sheets", "get", spreadsheetId, `${tabName}!${range}`]);
-    const values = data.values ?? data;
-    return Array.isArray(values) ? values.map((row) => row.map((cell) => String(cell))) : [];
+    const sheets = await getSheetsClient();
+    const response = await sheets.spreadsheets.values.get({
+        spreadsheetId,
+        range: `${tabName}!${range}`,
+    });
+    return (response.data.values ?? []).map((row) => row.map((cell) => String(cell)));
 }
