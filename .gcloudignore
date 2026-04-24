@@ -10,4 +10,5 @@ tsconfig.json
 .env
 .env.example
 .gitignore
+dashboard/data/
 TODO.md

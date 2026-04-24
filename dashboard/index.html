@@ -1,0 +1,2239 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>KC Sales Dashboard</title>
+    <style>
+      :root {
+        --kc-navy: #005070;
+        --kc-blue: #00aeef;
+        --kc-blue-2: #2da1db;
+        --kc-blue-3: #0d7fa7;
+        --kc-slate: #283a53;
+        --kc-text: #33485c;
+        --kc-muted: #617286;
+        --kc-border: rgba(0, 80, 112, 0.12);
+        --kc-bg: #e9f3f9;
+        --kc-bg-2: #f5fafe;
+        --kc-white: rgba(255, 255, 255, 0.96);
+        --kc-white-strong: #ffffff;
+        --kc-danger: #e43232;
+        --kc-danger-bg: rgba(244, 107, 107, 0.14);
+        --kc-warning: rgba(245, 192, 76, 0.16);
+        --kc-warning-text: #8a6d1d;
+        --kc-success: rgba(60, 184, 120, 0.16);
+        --kc-success-text: #1f6b45;
+        --kc-shadow: 0 10px 24px rgba(0, 80, 112, 0.08);
+        --kc-shadow-soft: 0 6px 16px rgba(0, 80, 112, 0.06);
+        --kc-ring: 0 0 0 3px rgba(0, 174, 239, 0.18);
+      }
+
+      * { box-sizing: border-box; }
+
+      html {
+        scroll-behavior: smooth;
+      }
+
+      body {
+        margin: 0;
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        color: var(--kc-text);
+        background: linear-gradient(180deg, #eef6fb 0%, #e8f2f8 100%);
+        min-height: 100vh;
+      }
+
+      body::before,
+      body::after {
+        content: "";
+        position: fixed;
+        inset: auto;
+        border-radius: 999px;
+        pointer-events: none;
+        filter: blur(18px);
+        z-index: 0;
+      }
+
+      body::before {
+        width: 320px;
+        height: 320px;
+        top: 28px;
+        right: 5vw;
+        display: none;
+      }
+
+      body::after {
+        width: 260px;
+        height: 260px;
+        left: -60px;
+        top: 180px;
+        display: none;
+      }
+
+      a {
+        color: var(--kc-blue);
+        text-decoration: none;
+      }
+
+      a:hover { text-decoration: underline; }
+
+      button,
+      input,
+      select {
+        font: inherit;
+      }
+
+      button {
+        border: 0;
+      }
+
+      .page {
+        position: relative;
+        z-index: 1;
+        max-width: 1540px;
+        margin: 0 auto;
+        padding: 18px;
+      }
+
+      .stack {
+        display: grid;
+        gap: 16px;
+      }
+
+      .card {
+        background: var(--kc-white);
+        border: 1px solid var(--kc-border);
+        border-radius: 18px;
+        box-shadow: var(--kc-shadow);
+      }
+
+      .hero {
+        position: relative;
+        overflow: hidden;
+        padding: 16px 18px;
+        display: grid;
+        gap: 12px;
+        background: linear-gradient(135deg, rgba(0,80,112,0.98), rgba(13,127,167,0.92));
+        color: white;
+      }
+
+      .hero::after {
+        content: "";
+        position: absolute;
+        inset: auto -56px -86px auto;
+        width: 220px;
+        height: 220px;
+        background: radial-gradient(circle, rgba(255,255,255,0.16) 0, rgba(255,255,255,0) 70%);
+        pointer-events: none;
+      }
+
+      .hero-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+        flex-wrap: wrap;
+      }
+
+      .hero-title-block {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+
+      .hero h1 {
+        margin: 0;
+        font-size: clamp(26px, 3.4vw, 34px);
+        line-height: 1;
+        letter-spacing: -0.03em;
+      }
+
+      .eyebrow {
+        text-transform: uppercase;
+        letter-spacing: 0.16em;
+        font-size: 11px;
+        font-weight: 700;
+        opacity: 0.78;
+      }
+
+      .hero-status-row {
+        display: grid;
+        grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
+        gap: 10px;
+        align-items: stretch;
+      }
+
+      .hero-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .hero-meta-chip {
+        padding: 8px 10px;
+        border-radius: 12px;
+        background: rgba(255,255,255,0.12);
+        border: 1px solid rgba(255,255,255,0.16);
+      }
+
+      .hero-meta-chip strong {
+        display: block;
+        font-size: 20px;
+        line-height: 1;
+        margin-bottom: 4px;
+      }
+
+      .hero-meta-chip span {
+        color: rgba(255,255,255,0.78);
+        font-size: 12px;
+      }
+
+      .hero-meta,
+      .hero-actions,
+      .refresh-panel {
+        border-radius: 14px;
+        border: 1px solid rgba(255,255,255,0.18);
+        background: rgba(255,255,255,0.11);
+      }
+
+      .hero-meta {
+        padding: 11px 12px;
+        color: rgba(255,255,255,0.9);
+        font-size: 13px;
+        line-height: 1.45;
+      }
+
+      .hero-actions {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        align-content: start;
+        padding: 8px;
+      }
+
+      .refresh-panel {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 10px 12px;
+        transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+      }
+
+      .refresh-panel.is-working {
+        border-color: rgba(245, 192, 76, 0.42);
+        background: rgba(255, 248, 227, 0.16);
+      }
+
+      .refresh-panel.is-success {
+        border-color: rgba(116, 221, 166, 0.4);
+        background: rgba(60, 184, 120, 0.14);
+      }
+
+      .refresh-panel.is-error {
+        border-color: rgba(255, 151, 151, 0.42);
+        background: rgba(228, 50, 50, 0.16);
+      }
+
+      .refresh-badge {
+        min-width: 92px;
+        min-height: 30px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        border: 1px solid rgba(255,255,255,0.18);
+        color: white;
+      }
+
+      .refresh-badge.refresh-idle {
+        background: rgba(255,255,255,0.1);
+      }
+
+      .refresh-badge.refresh-working {
+        background: rgba(245, 192, 76, 0.2);
+        border-color: rgba(255, 222, 151, 0.45);
+      }
+
+      .refresh-badge.refresh-success {
+        background: rgba(60, 184, 120, 0.22);
+        border-color: rgba(140, 235, 182, 0.44);
+      }
+
+      .refresh-badge.refresh-error {
+        background: rgba(228, 50, 50, 0.22);
+        border-color: rgba(255, 170, 170, 0.48);
+      }
+
+      .refresh-copy {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+
+      .refresh-line {
+        font-size: 13px;
+        font-weight: 700;
+        color: white;
+      }
+
+      .refresh-detail {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 4px 12px;
+        color: rgba(255,255,255,0.76);
+        font-size: 12px;
+      }
+
+      .toast-stack {
+        position: fixed;
+        top: 14px;
+        right: 14px;
+        z-index: 40;
+        display: grid;
+        gap: 8px;
+        pointer-events: none;
+      }
+
+      .toast {
+        max-width: min(420px, calc(100vw - 28px));
+        padding: 10px 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(113, 150, 173, 0.18);
+        background: rgba(255,255,255,0.98);
+        box-shadow: 0 14px 28px rgba(0, 80, 112, 0.16);
+        color: var(--kc-slate);
+        font-size: 13px;
+        font-weight: 700;
+      }
+
+      .toast.success {
+        border-color: rgba(60, 184, 120, 0.34);
+        background: #f2fcf6;
+        color: var(--kc-success-text);
+      }
+
+      .toast.error {
+        border-color: rgba(228, 50, 50, 0.3);
+        background: #fff6f6;
+        color: #8e1e1e;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 8px 14px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.16);
+        color: white;
+        border: 1px solid rgba(255,255,255,0.24);
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease, border-color 160ms ease, color 160ms ease;
+      }
+
+      .btn:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 14px 24px rgba(0,0,0,0.14);
+      }
+
+      .btn.secondary {
+        background: rgba(255,255,255,0.92);
+        color: var(--kc-slate);
+        border-color: rgba(255,255,255,0.9);
+      }
+
+      .btn.is-working,
+      .mobile-action-btn.is-working {
+        background: rgba(245, 192, 76, 0.24);
+        border-color: rgba(255, 221, 145, 0.52);
+        color: white;
+      }
+
+      .btn.is-success,
+      .mobile-action-btn.is-success {
+        background: rgba(60, 184, 120, 0.24);
+        border-color: rgba(140, 235, 182, 0.48);
+        color: white;
+      }
+
+      .btn.is-error,
+      .mobile-action-btn.is-error {
+        background: rgba(228, 50, 50, 0.22);
+        border-color: rgba(255, 167, 167, 0.46);
+        color: white;
+      }
+
+      .btn.secondary.is-working,
+      .btn.secondary.is-success,
+      .btn.secondary.is-error {
+        color: var(--kc-slate);
+        background: rgba(255,255,255,0.96);
+      }
+
+      .btn.secondary.is-working {
+        border-color: rgba(245, 192, 76, 0.6);
+        box-shadow: inset 0 0 0 999px rgba(245, 192, 76, 0.14);
+      }
+
+      .btn.secondary.is-success {
+        border-color: rgba(60, 184, 120, 0.52);
+        box-shadow: inset 0 0 0 999px rgba(60, 184, 120, 0.12);
+      }
+
+      .btn.secondary.is-error {
+        border-color: rgba(228, 50, 50, 0.44);
+        box-shadow: inset 0 0 0 999px rgba(228, 50, 50, 0.1);
+      }
+
+      .btn:disabled {
+        opacity: 0.55;
+        cursor: wait;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .section {
+        display: grid;
+        gap: 12px;
+      }
+
+      .mobile-only {
+        display: none;
+      }
+
+      .section-title {
+        display: flex;
+        justify-content: space-between;
+        align-items: end;
+        gap: 10px;
+      }
+
+      .section-title h2,
+      .section-title h3 {
+        margin: 0;
+        color: var(--kc-slate);
+        letter-spacing: -0.02em;
+      }
+
+      .section-title h2 {
+        font-size: 22px;
+      }
+
+      .section-lead {
+        color: var(--kc-muted);
+        font-size: 13px;
+        line-height: 1.35;
+        margin-top: 4px;
+      }
+
+      .subtle {
+        color: var(--kc-muted);
+        font-size: 12px;
+      }
+
+      .controls-card {
+        padding: 16px;
+        display: grid;
+        gap: 12px;
+      }
+
+      .controls-grid {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(160px, 1fr));
+        gap: 10px;
+      }
+
+      .control-group {
+        display: grid;
+        gap: 6px;
+      }
+
+      .control-label {
+        font-size: 12px;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        color: var(--kc-muted);
+      }
+
+      .control-input,
+      .control-select {
+        width: 100%;
+        min-height: 40px;
+        padding: 0 12px;
+        border-radius: 12px;
+        border: 1px solid rgba(113, 150, 173, 0.24);
+        background: var(--kc-white-strong);
+        color: var(--kc-slate);
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.65);
+      }
+
+      .control-input:focus,
+      .control-select:focus,
+      .toggle-pill:focus-visible,
+      .pill:focus-visible,
+      .btn:focus-visible,
+      .rep-card:focus-visible,
+      .sort-btn:focus-visible {
+        outline: none;
+        box-shadow: var(--kc-ring);
+      }
+
+      .toggle-row,
+      .pill-row,
+      .toolbar-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .toggle-pill,
+      .pill,
+      .sort-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 34px;
+        padding: 6px 12px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.98);
+        border: 1px solid rgba(113, 150, 173, 0.2);
+        color: var(--kc-slate);
+        font-size: 13px;
+        font-weight: 700;
+        cursor: pointer;
+        transition: transform 140ms ease, box-shadow 140ms ease, border-color 140ms ease, background 140ms ease;
+      }
+
+      .toggle-pill:hover,
+      .pill:hover,
+      .sort-btn:hover,
+      .rep-card:hover {
+        transform: translateY(-1px);
+        box-shadow: var(--kc-shadow-soft);
+      }
+
+      .toggle-pill.active,
+      .pill.active,
+      .sort-btn.active {
+        background: linear-gradient(180deg, rgba(0,174,239,0.16), rgba(0,174,239,0.08));
+        border-color: rgba(0,174,239,0.34);
+        color: var(--kc-navy);
+      }
+
+      .stats-grid,
+      .rep-grid {
+        display: grid;
+        gap: 12px;
+      }
+
+      .stats-grid {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .rep-grid {
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      }
+
+      .metric-card {
+        position: relative;
+        padding: 16px;
+        overflow: hidden;
+      }
+
+      .metric-card::before {
+        content: "";
+        position: absolute;
+        inset: 0 auto auto 0;
+        width: 100%;
+        height: 4px;
+        background: linear-gradient(90deg, rgba(0,174,239,0.2), rgba(0,174,239,0.55));
+      }
+
+      .metric-card.overdue::before { background: linear-gradient(90deg, rgba(228,50,50,0.16), rgba(228,50,50,0.7)); }
+      .metric-card.stale::before { background: linear-gradient(90deg, rgba(245,192,76,0.18), rgba(245,192,76,0.76)); }
+      .metric-card.active::before { background: linear-gradient(90deg, rgba(60,184,120,0.18), rgba(60,184,120,0.72)); }
+      .metric-card.unassigned::before { background: linear-gradient(90deg, rgba(0,174,239,0.16), rgba(0,80,112,0.68)); }
+      .metric-card.no-note::before { background: linear-gradient(90deg, rgba(123,135,148,0.18), rgba(123,135,148,0.7)); }
+
+      .metric-label {
+        color: var(--kc-muted);
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+      }
+
+      .metric-value {
+        margin-top: 8px;
+        font-size: clamp(28px, 2.5vw, 36px);
+        line-height: 1;
+        font-weight: 800;
+        color: var(--kc-slate);
+        letter-spacing: -0.03em;
+      }
+
+      .metric-sub {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--kc-muted);
+        line-height: 1.4;
+      }
+
+      .insight-grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+      }
+
+      .insight-card {
+        padding: 14px 16px;
+      }
+
+      .insight-card strong {
+        display: block;
+        font-size: 22px;
+        color: var(--kc-slate);
+        margin-top: 6px;
+      }
+
+      .rep-card {
+        display: grid;
+        gap: 12px;
+        padding: 14px;
+        text-align: left;
+        cursor: pointer;
+        transition: transform 160ms ease, box-shadow 160ms ease, border-color 160ms ease, background 160ms ease;
+      }
+
+      .rep-card.active {
+        border-color: rgba(0,174,239,0.34);
+        background: linear-gradient(180deg, rgba(255,255,255,0.98), rgba(235,247,252,0.92));
+      }
+
+      .rep-top {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+        align-items: start;
+      }
+
+      .rep-name {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--kc-slate);
+      }
+
+      .rep-total {
+        color: var(--kc-muted);
+        font-size: 13px;
+        margin-top: 4px;
+      }
+
+      .rep-score {
+        padding: 6px 10px;
+        border-radius: 12px;
+        font-size: 12px;
+        font-weight: 700;
+        background: #edf7fd;
+        color: var(--kc-navy);
+      }
+
+      .rep-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+
+      .mini {
+        border-radius: 12px;
+        padding: 10px;
+      }
+
+      .mini strong {
+        display: block;
+        font-size: 18px;
+        margin-bottom: 4px;
+      }
+
+      .mini span {
+        font-size: 10px;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+      }
+
+      .mini.overdue { background: var(--kc-danger-bg); color: #8e1e1e; }
+      .mini.stale { background: #fff8df; color: var(--kc-warning-text); }
+      .mini.active { background: var(--kc-success); color: var(--kc-success-text); }
+
+      .rep-note {
+        display: none;
+      }
+
+      .table-card {
+        overflow: hidden;
+      }
+
+      .table-header {
+        padding: 16px;
+        border-bottom: 1px solid rgba(113, 150, 173, 0.16);
+        display: grid;
+        gap: 10px;
+        background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(245,250,254,0.98));
+      }
+
+      .table-toolbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 14px;
+        flex-wrap: wrap;
+      }
+
+      .table-wrap {
+        overflow: auto;
+        max-height: 72vh;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        min-width: 1240px;
+      }
+
+      th, td {
+        text-align: left;
+        padding: 11px 12px;
+        border-bottom: 1px solid rgba(113, 150, 173, 0.16);
+        vertical-align: top;
+        font-size: 13px;
+      }
+
+      th {
+        background: rgba(0, 80, 112, 0.98);
+        color: white;
+        font-size: 11px;
+        text-transform: uppercase;
+        letter-spacing: 0.12em;
+        position: sticky;
+        top: 0;
+        z-index: 2;
+      }
+
+      tr.overdue-row { background: rgba(255, 243, 243, 0.7); }
+      tr.stale-row { background: rgba(255, 250, 240, 0.86); }
+      tr.active-row { background: rgba(245, 252, 248, 0.82); }
+
+      tr.compact th,
+      tr.compact td,
+      .compact-mode th,
+      .compact-mode td {
+        padding-top: 10px;
+        padding-bottom: 10px;
+      }
+
+      .status {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        border-radius: 999px;
+        padding: 6px 10px;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .status.overdue { background: var(--kc-danger-bg); color: #8e1e1e; }
+      .status.stale { background: #fff6d8; color: var(--kc-warning-text); }
+      .status.active { background: var(--kc-success); color: var(--kc-success-text); }
+
+      .note-cell {
+        width: 300px;
+        min-width: 300px;
+      }
+
+      .note {
+        max-width: 280px;
+        color: var(--kc-muted);
+        line-height: 1.35;
+        font-size: 12px;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+      }
+
+      .mono {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+
+      .empty-state,
+      .error-state {
+        padding: 18px 20px;
+        border-top: 1px solid rgba(113, 150, 173, 0.16);
+        color: var(--kc-muted);
+      }
+
+      .error-state {
+        color: #8e1e1e;
+        background: #fff6f6;
+      }
+
+      .footer-note {
+        margin-top: 14px;
+        color: var(--kc-muted);
+        font-size: 13px;
+      }
+
+      .mobile-action-bar {
+        display: none;
+      }
+
+      .quote-list {
+        display: none;
+      }
+
+      .quote-card-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+
+      .quote-action-btn,
+      .mobile-action-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        padding: 6px 10px;
+        border-radius: 999px;
+        border: 1px solid rgba(113, 150, 173, 0.2);
+        background: rgba(255,255,255,0.98);
+        color: var(--kc-slate);
+        font-size: 11px;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+        text-decoration: none;
+        cursor: pointer;
+        box-shadow: 0 4px 10px rgba(0, 80, 112, 0.06);
+      }
+
+      .quote-action-btn.primary,
+      .mobile-action-btn.primary {
+        background: linear-gradient(180deg, rgba(0,174,239,0.18), rgba(0,174,239,0.1));
+        border-color: rgba(0,174,239,0.28);
+        color: var(--kc-navy);
+      }
+
+      .quote-action-btn:disabled,
+      .mobile-action-btn:disabled {
+        opacity: 0.48;
+        cursor: default;
+        box-shadow: none;
+      }
+
+      .quote-card {
+        display: grid;
+        gap: 8px;
+        padding: 12px;
+        margin: 0 12px 10px;
+        border-radius: 16px;
+        border: 1px solid rgba(113, 150, 173, 0.16);
+        background: rgba(255,255,255,0.98);
+        box-shadow: var(--kc-shadow-soft);
+      }
+
+      .quote-card.overdue {
+        border-color: rgba(228, 50, 50, 0.22);
+        background: rgba(255, 247, 247, 0.96);
+      }
+
+      .quote-card.stale {
+        border-color: rgba(245, 192, 76, 0.26);
+        background: rgba(255, 252, 244, 0.96);
+      }
+
+      .quote-card.active {
+        border-color: rgba(60, 184, 120, 0.2);
+        background: rgba(247, 253, 249, 0.96);
+      }
+
+      .quote-card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: start;
+        gap: 10px;
+      }
+
+      .quote-card-title {
+        min-width: 0;
+        display: grid;
+        gap: 2px;
+      }
+
+      .quote-link {
+        font-size: 16px;
+        font-weight: 800;
+        color: var(--kc-slate);
+      }
+
+      .quote-card-client,
+      .quote-card-detail {
+        color: var(--kc-muted);
+        font-size: 12px;
+        line-height: 1.4;
+      }
+
+      .quote-card-statuses,
+      .quote-card-flags,
+      .quote-card-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+      }
+
+      .quote-card-statuses {
+        align-items: center;
+        justify-content: flex-end;
+      }
+
+      .quote-age,
+      .flag {
+        display: inline-flex;
+        align-items: center;
+        min-height: 30px;
+        padding: 5px 10px;
+        border-radius: 999px;
+        background: rgba(255,255,255,0.9);
+        border: 1px solid rgba(113, 150, 173, 0.18);
+        color: var(--kc-slate);
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .flag {
+        background: rgba(237, 247, 253, 0.92);
+        color: var(--kc-navy);
+      }
+
+      .quote-card-meta {
+        color: var(--kc-muted);
+        font-size: 11px;
+        line-height: 1.35;
+      }
+
+      .quote-card-meta strong {
+        color: var(--kc-slate);
+      }
+
+      @media (max-width: 1320px) {
+        .controls-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 1120px) {
+        .hero-status-row {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-meta-grid,
+        .insight-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+      }
+
+      @media (max-width: 760px) {
+        body::before,
+        body::after {
+          display: none;
+        }
+
+        .page {
+          padding: 8px;
+          padding-bottom: calc(88px + env(safe-area-inset-bottom));
+        }
+
+        .stack {
+          gap: 10px;
+        }
+
+        .card {
+          border-radius: 14px;
+          box-shadow: 0 8px 18px rgba(0, 80, 112, 0.08);
+        }
+
+        .controls-grid,
+        .rep-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .hero {
+          padding: 12px;
+          gap: 8px;
+          border-radius: 16px;
+        }
+
+        .hero-top {
+          align-items: start;
+        }
+
+        .hero-title-block {
+          gap: 3px;
+        }
+
+        .hero h1 {
+          font-size: 22px;
+        }
+
+        .hero-meta-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 6px;
+        }
+
+        .hero-meta-chip {
+          padding: 8px;
+          border-radius: 10px;
+        }
+
+        .hero-meta-chip strong {
+          font-size: 18px;
+          margin-bottom: 4px;
+        }
+
+        .hero-meta {
+          padding: 10px;
+          font-size: 12px;
+        }
+
+        .hero-actions,
+        .refresh-panel {
+          padding: 8px 10px;
+          border-radius: 12px;
+        }
+
+        .refresh-panel {
+          flex-direction: column;
+          gap: 8px;
+        }
+
+        .refresh-badge {
+          min-width: 0;
+          width: fit-content;
+        }
+
+        .refresh-detail {
+          display: grid;
+          gap: 2px;
+        }
+
+        .btn {
+          min-height: 34px;
+          padding: 7px 10px;
+          font-size: 12px;
+          flex: 1 1 calc(50% - 5px);
+        }
+
+        .section {
+          gap: 8px;
+        }
+
+        .section-title {
+          gap: 8px;
+        }
+
+        .section-title h2 {
+          font-size: 18px;
+        }
+
+        .section-title h3 {
+          font-size: 16px;
+        }
+
+        .section-lead {
+          font-size: 11px;
+          margin-top: 4px;
+        }
+
+        .controls-card {
+          padding: 10px;
+          gap: 10px;
+        }
+
+        .controls-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .control-group {
+          gap: 6px;
+        }
+
+        .control-label {
+          font-size: 10px;
+          letter-spacing: 0.1em;
+        }
+
+        .control-input,
+        .control-select {
+          min-height: 36px;
+          padding: 0 10px;
+          border-radius: 10px;
+        }
+
+        .toggle-row,
+        .pill-row {
+          flex-wrap: nowrap;
+          overflow-x: auto;
+          padding-bottom: 2px;
+          scrollbar-width: none;
+        }
+
+        .toggle-row::-webkit-scrollbar,
+        .pill-row::-webkit-scrollbar {
+          display: none;
+        }
+
+        .toolbar-row {
+          display: grid;
+          gap: 8px;
+        }
+
+        .toolbar-row .toggle-row:last-child {
+          display: none;
+        }
+
+        .toggle-pill,
+        .pill,
+        .sort-btn {
+          min-height: 30px;
+          padding: 5px 10px;
+          font-size: 11px;
+          white-space: nowrap;
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .metric-card {
+          padding: 10px;
+        }
+
+        .metric-card.mobile-secondary {
+          display: none;
+        }
+
+        .metric-label {
+          font-size: 10px;
+          letter-spacing: 0.08em;
+        }
+
+        .metric-value {
+          margin-top: 6px;
+          font-size: 22px;
+        }
+
+        .metric-sub {
+          display: none;
+        }
+
+        .insights-section {
+          display: none;
+        }
+
+        .rep-card {
+          padding: 10px;
+          gap: 8px;
+        }
+
+        .rep-name {
+          font-size: 14px;
+        }
+
+        .rep-total,
+        .rep-score {
+          font-size: 11px;
+        }
+
+        .mini {
+          padding: 6px;
+          border-radius: 10px;
+        }
+
+        .mini strong {
+          font-size: 14px;
+        }
+
+        .rep-note,
+        #rep-filters {
+          display: none;
+        }
+
+        .table-header {
+          padding: 10px;
+          gap: 8px;
+        }
+
+        .table-wrap {
+          display: none;
+        }
+
+        .mobile-only,
+        .quote-list {
+          display: block;
+        }
+
+        .quote-list {
+          padding-bottom: 4px;
+        }
+
+        .quote-card {
+          margin: 0 8px 6px;
+          padding: 8px;
+          border-radius: 12px;
+          gap: 5px;
+        }
+
+        .quote-card-top {
+          flex-direction: column;
+          gap: 6px;
+        }
+
+        .quote-card-statuses {
+          justify-content: flex-start;
+          gap: 6px;
+        }
+
+        .quote-card-title {
+          gap: 2px;
+        }
+
+        .quote-link {
+          font-size: 13px;
+        }
+
+        .quote-card-client,
+        .quote-card-detail {
+          font-size: 11px;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .quote-card-client,
+        .quote-card-detail {
+          -webkit-line-clamp: 1;
+        }
+
+        .quote-card-meta {
+          display: grid;
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+          gap: 2px 6px;
+          font-size: 10px;
+        }
+
+        .quote-age,
+        .flag,
+        .status,
+        .quote-action-btn,
+        .mobile-action-btn {
+          min-height: 26px;
+          padding: 4px 8px;
+          font-size: 10px;
+        }
+
+        .quote-card-actions {
+          gap: 5px;
+        }
+
+        .quote-action-btn {
+          flex: 1 1 0;
+        }
+
+        .mobile-action-bar {
+          position: fixed;
+          left: 8px;
+          right: 8px;
+          bottom: calc(8px + env(safe-area-inset-bottom));
+          z-index: 20;
+          display: grid;
+          gap: 6px;
+          padding: 8px;
+          border-radius: 14px;
+          border: 1px solid rgba(113, 150, 173, 0.16);
+          background: rgba(255,255,255,0.98);
+          box-shadow: 0 12px 24px rgba(40, 58, 83, 0.12);
+        }
+
+        .mobile-action-summary {
+          display: flex;
+          justify-content: space-between;
+          gap: 10px;
+          align-items: center;
+          font-size: 11px;
+          color: var(--kc-muted);
+        }
+
+        .mobile-action-summary strong {
+          color: var(--kc-slate);
+          font-size: 12px;
+        }
+
+        .mobile-action-buttons {
+          display: grid;
+          grid-template-columns: repeat(3, minmax(0, 1fr));
+          gap: 8px;
+        }
+
+        .table-toolbar,
+        .section-title {
+          align-items: start;
+        }
+
+        .footer-note {
+          margin-top: 0;
+          font-size: 12px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="page">
+      <div class="stack">
+        <section class="card hero">
+          <div class="hero-top">
+            <div class="hero-title-block">
+              <div class="eyebrow">KC Power Clean · Sales Dashboard</div>
+              <h1>Draft Quotes</h1>
+            </div>
+            <div class="hero-actions">
+              <button id="refresh-data" class="btn" type="button">Refresh live data</button>
+              <button id="reload-page" class="btn secondary" type="button">Reload view data</button>
+            </div>
+          </div>
+          <div class="hero-status-row">
+            <div class="hero-meta-grid" id="hero-stats"></div>
+            <div class="refresh-panel" id="refresh-panel">
+              <div class="refresh-badge refresh-idle" id="refresh-badge">Ready</div>
+              <div class="refresh-copy">
+                <div class="refresh-line" id="refresh-line">Waiting for dashboard data…</div>
+                <div class="refresh-detail" id="refresh-detail"></div>
+              </div>
+            </div>
+          </div>
+          <div class="hero-meta" id="hero-meta">Loading live dashboard data…</div>
+        </section>
+
+        <section class="card controls-card" id="mobile-controls">
+          <div class="section-title">
+            <div>
+              <h2>Filters</h2>
+              <div class="section-lead">Rep, source, aging, and density.</div>
+            </div>
+            <div class="subtle" id="results-summary">Waiting for dashboard data…</div>
+          </div>
+
+          <div class="controls-grid">
+            <label class="control-group">
+              <span class="control-label">Rep</span>
+              <select id="rep-select" class="control-select"></select>
+            </label>
+            <label class="control-group">
+              <span class="control-label">Lead source</span>
+              <select id="lead-source-select" class="control-select"></select>
+            </label>
+            <label class="control-group">
+              <span class="control-label">Sort rows</span>
+              <select id="sort-select" class="control-select">
+                <option value="priority">Priority (bucket → oldest)</option>
+                <option value="oldest">Oldest touch first</option>
+                <option value="newest">Newest touch first</option>
+                <option value="rep">Rep name</option>
+                <option value="client">Client name</option>
+                <option value="quote">Quote number</option>
+              </select>
+            </label>
+            <label class="control-group">
+              <span class="control-label">Density</span>
+              <select id="density-select" class="control-select">
+                <option value="comfortable">Comfortable</option>
+                <option value="compact">Compact</option>
+              </select>
+            </label>
+          </div>
+
+          <div class="toggle-row" id="top-filters"></div>
+          <div class="toolbar-row">
+            <div class="toggle-row" id="aging-filters"></div>
+            <div class="toggle-row">
+              <button type="button" class="toggle-pill" data-toggle="noNoteOnly">No-note only</button>
+              <button type="button" class="toggle-pill" data-toggle="missingOwnerOnly">Missing owner only</button>
+              <button type="button" class="toggle-pill" data-toggle="hideActive">Hide active rows</button>
+            </div>
+            <button id="clear-filters" class="sort-btn" type="button">Reset filters</button>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <div>
+              <h2>Aging snapshot</h2>
+              <div class="section-lead">High-signal KPI view for draft quote accountability.</div>
+            </div>
+            <div class="subtle">Live accountability view</div>
+          </div>
+          <div class="stats-grid" id="stats-grid"></div>
+        </section>
+
+        <section class="section insights-section">
+          <div class="section-title">
+            <div>
+              <h2>Quick insights</h2>
+              <div class="section-lead">Key signals for the current view.</div>
+            </div>
+            <div class="subtle" id="insight-caption">Updates with the current view.</div>
+          </div>
+          <div class="insight-grid" id="insight-grid"></div>
+        </section>
+
+        <section class="section">
+          <div class="section-title">
+            <div>
+              <h2>Rep accountability</h2>
+              <div class="section-lead">Use a rep card or filter to narrow the list.</div>
+            </div>
+            <div class="subtle">Default sort keeps overdue exposure first.</div>
+          </div>
+          <div class="rep-grid" id="rep-grid"></div>
+        </section>
+
+        <section class="card table-card">
+          <div class="table-header">
+            <div class="table-toolbar">
+              <div>
+                <h3>Quotes requiring attention</h3>
+                <p id="table-subtitle" class="section-lead">Filtered quote list for the current view.</p>
+              </div>
+              <div class="toolbar-row">
+                <div class="pill-row" id="rep-filters"></div>
+              </div>
+            </div>
+          </div>
+
+          <div class="quote-list mobile-only" id="mobile-list"></div>
+          <div class="table-wrap" id="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Quote</th>
+                  <th>Client</th>
+                  <th>Rep</th>
+                  <th>Days Since Touch</th>
+                  <th>Last Touch</th>
+                  <th>Last Touch By</th>
+                  <th>Lead Source</th>
+                  <th>Last Note Summary</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="rows-body"></tbody>
+            </table>
+          </div>
+          <div id="table-state"></div>
+        </section>
+
+        <div class="footer-note" id="footer-note"></div>
+      </div>
+    </div>
+
+    <div class="mobile-action-bar mobile-only" id="mobile-action-bar">
+      <div class="mobile-action-summary">
+        <strong id="mobile-results-summary">Loading…</strong>
+        <span id="mobile-filter-summary">All drafts</span>
+      </div>
+      <div class="mobile-action-buttons">
+        <button id="mobile-jump-filters" class="mobile-action-btn primary" type="button">Filters</button>
+        <button id="mobile-reset-filters" class="mobile-action-btn" type="button">Reset</button>
+        <button id="mobile-refresh-data" class="mobile-action-btn" type="button">Refresh</button>
+      </div>
+    </div>
+
+    <div class="toast-stack" id="toast-stack" aria-live="polite" aria-atomic="true"></div>
+
+    <script src="./data/live-data.js"></script>
+    <script>
+      function getDefaultControls() {
+        const compactByDefault = window.matchMedia('(max-width: 760px)').matches;
+        return {
+          filterKey: 'all',
+          repFilter: 'All reps',
+          leadSource: 'All lead sources',
+          agingView: 'all',
+          sortBy: 'priority',
+          density: compactByDefault ? 'compact' : 'comfortable',
+          noNoteOnly: false,
+          missingOwnerOnly: false,
+          hideActive: false,
+        };
+      }
+
+      const state = {
+        data: null,
+        refreshState: 'idle',
+        refreshMessage: 'Ready',
+        refreshDetail: '',
+        lastRefreshedAt: null,
+        lastRefreshRowCount: null,
+        refreshError: '',
+        ...getDefaultControls(),
+      };
+
+      const els = {
+        heroMeta: document.getElementById('hero-meta'),
+        heroStats: document.getElementById('hero-stats'),
+        refreshPanel: document.getElementById('refresh-panel'),
+        refreshBadge: document.getElementById('refresh-badge'),
+        refreshLine: document.getElementById('refresh-line'),
+        refreshDetail: document.getElementById('refresh-detail'),
+        toastStack: document.getElementById('toast-stack'),
+        mobileControls: document.getElementById('mobile-controls'),
+        statsGrid: document.getElementById('stats-grid'),
+        insightGrid: document.getElementById('insight-grid'),
+        insightCaption: document.getElementById('insight-caption'),
+        topFilters: document.getElementById('top-filters'),
+        agingFilters: document.getElementById('aging-filters'),
+        repGrid: document.getElementById('rep-grid'),
+        repFilters: document.getElementById('rep-filters'),
+        rowsBody: document.getElementById('rows-body'),
+        tableState: document.getElementById('table-state'),
+        tableSubtitle: document.getElementById('table-subtitle'),
+        footerNote: document.getElementById('footer-note'),
+        resultsSummary: document.getElementById('results-summary'),
+        repSelect: document.getElementById('rep-select'),
+        leadSourceSelect: document.getElementById('lead-source-select'),
+        sortSelect: document.getElementById('sort-select'),
+        densitySelect: document.getElementById('density-select'),
+        clearFilters: document.getElementById('clear-filters'),
+        refreshButton: document.getElementById('refresh-data'),
+        reloadButton: document.getElementById('reload-page'),
+        tableWrap: document.getElementById('table-wrap'),
+        mobileList: document.getElementById('mobile-list'),
+        mobileActionBar: document.getElementById('mobile-action-bar'),
+        mobileResultsSummary: document.getElementById('mobile-results-summary'),
+        mobileFilterSummary: document.getElementById('mobile-filter-summary'),
+        mobileJumpFilters: document.getElementById('mobile-jump-filters'),
+        mobileResetFilters: document.getElementById('mobile-reset-filters'),
+        mobileRefreshButton: document.getElementById('mobile-refresh-data'),
+      };
+
+      function escapeHtml(value) {
+        return String(value ?? '')
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/"/g, '&quot;')
+          .replace(/'/g, '&#39;');
+      }
+
+      function toneClass(tone) {
+        return tone === 'overdue' ? 'overdue' : tone === 'stale' ? 'stale' : 'active';
+      }
+
+      function priorityValue(tone) {
+        return tone === 'overdue' ? 0 : tone === 'stale' ? 1 : 2;
+      }
+
+      function labelForFilterKey(key) {
+        const found = state.data?.filters?.find((filter) => filter.key === key);
+        return found ? found.label : key;
+      }
+
+      function activeFilterCount() {
+        let count = 0;
+        if (state.filterKey !== 'all') count += 1;
+        if (state.repFilter !== 'All reps') count += 1;
+        if (state.leadSource !== 'All lead sources') count += 1;
+        if (state.agingView !== 'all') count += 1;
+        if (state.noNoteOnly) count += 1;
+        if (state.missingOwnerOnly) count += 1;
+        if (state.hideActive) count += 1;
+        return count;
+      }
+
+      function hasCustomFilters() {
+        return activeFilterCount() > 0 || state.sortBy !== 'priority' || state.density !== getDefaultControls().density;
+      }
+
+      function metricCards(metrics) {
+        return [
+          { label: 'Overdue > 7 Days', value: metrics.overdue, sub: 'Highest-pressure follow-up bucket', className: 'overdue' },
+          { label: 'Stale 4–7 Days', value: metrics.stale, sub: 'Needs movement before it slips', className: 'stale' },
+          { label: 'No Note', value: metrics.noNote, sub: 'Quotes missing note context', className: 'no-note' },
+          { label: 'Active < 4 Days', value: metrics.active, sub: 'Recently touched and still moving', className: 'active mobile-secondary' },
+          { label: 'Total Drafts', value: metrics.totalDrafts, sub: 'Current draft quote population', className: 'mobile-secondary' },
+        ];
+      }
+
+      function passesTopFilter(row) {
+        if (state.filterKey === 'overdue') return row.rowTone === 'overdue';
+        if (state.filterKey === 'stale') return row.rowTone === 'stale';
+        if (state.filterKey === 'active') return row.rowTone === 'active';
+        if (state.filterKey === 'unassigned') return row.missingOwner;
+        if (state.filterKey === 'no-note') return row.hasNoNote;
+        return true;
+      }
+
+      function passesAgingFilter(row) {
+        return state.agingView === 'all' ? true : row.rowTone === state.agingView;
+      }
+
+      function passesRepFilter(row) {
+        return state.repFilter === 'All reps' ? true : row.repName === state.repFilter;
+      }
+
+      function passesLeadSourceFilter(row) {
+        return state.leadSource === 'All lead sources' ? true : (row.leadSource || 'Unknown') === state.leadSource;
+      }
+
+      function applyFilters(rows) {
+        return rows.filter((row) => {
+          if (!passesTopFilter(row)) return false;
+          if (!passesAgingFilter(row)) return false;
+          if (!passesRepFilter(row)) return false;
+          if (!passesLeadSourceFilter(row)) return false;
+          if (state.noNoteOnly && !row.hasNoNote) return false;
+          if (state.missingOwnerOnly && !row.missingOwner) return false;
+          if (state.hideActive && row.rowTone === 'active') return false;
+          return true;
+        });
+      }
+
+      function sortRows(rows) {
+        const sorted = [...rows];
+        sorted.sort((a, b) => {
+          if (state.sortBy === 'oldest') {
+            const dayA = a.daysSinceTouch ?? Number.MAX_SAFE_INTEGER;
+            const dayB = b.daysSinceTouch ?? Number.MAX_SAFE_INTEGER;
+            if (dayA !== dayB) return dayB - dayA;
+          } else if (state.sortBy === 'newest') {
+            const dayA = a.daysSinceTouch ?? Number.MAX_SAFE_INTEGER;
+            const dayB = b.daysSinceTouch ?? Number.MAX_SAFE_INTEGER;
+            if (dayA !== dayB) return dayA - dayB;
+          } else if (state.sortBy === 'rep') {
+            const repDiff = a.repName.localeCompare(b.repName);
+            if (repDiff !== 0) return repDiff;
+          } else if (state.sortBy === 'client') {
+            const clientDiff = a.clientName.localeCompare(b.clientName);
+            if (clientDiff !== 0) return clientDiff;
+          } else if (state.sortBy === 'quote') {
+            const quoteDiff = a.quoteNumber.localeCompare(b.quoteNumber, undefined, { numeric: true, sensitivity: 'base' });
+            if (quoteDiff !== 0) return quoteDiff;
+          } else {
+            const priorityDiff = priorityValue(a.rowTone) - priorityValue(b.rowTone);
+            if (priorityDiff !== 0) return priorityDiff;
+            const dayA = a.daysSinceTouch ?? Number.MAX_SAFE_INTEGER;
+            const dayB = b.daysSinceTouch ?? Number.MAX_SAFE_INTEGER;
+            if (dayA !== dayB) return dayB - dayA;
+          }
+          return a.quoteNumber.localeCompare(b.quoteNumber, undefined, { numeric: true, sensitivity: 'base' });
+        });
+        return sorted;
+      }
+
+      function filteredRows() {
+        return sortRows(applyFilters(state.data?.rows ?? []));
+      }
+
+      function filteredRepCards() {
+        const repRows = applyFilters(state.data?.rows ?? []);
+        const byRep = new Map();
+        for (const row of repRows) {
+          const list = byRep.get(row.repName) ?? [];
+          list.push(row);
+          byRep.set(row.repName, list);
+        }
+        return (state.data?.reps ?? []).filter((rep) => byRep.has(rep.repName));
+      }
+
+      function formatTimestamp(value) {
+        if (!value) return '—';
+        const date = value instanceof Date ? value : new Date(value);
+        return Number.isNaN(date.getTime()) ? '—' : date.toLocaleString();
+      }
+
+      function summarizeRowChange(previousCount, nextCount) {
+        if (typeof previousCount !== 'number' || typeof nextCount !== 'number') return '';
+        if (previousCount === nextCount) return `Rows unchanged at ${nextCount}.`;
+        const direction = nextCount > previousCount ? 'up' : 'down';
+        return `Rows ${direction} ${Math.abs(nextCount - previousCount)}: ${previousCount} → ${nextCount}.`;
+      }
+
+      function setRefreshState(status, message, detail = '', options = {}) {
+        state.refreshState = status;
+        state.refreshMessage = message;
+        state.refreshDetail = detail;
+        if (options.lastRefreshedAt !== undefined) state.lastRefreshedAt = options.lastRefreshedAt;
+        if (options.lastRefreshRowCount !== undefined) state.lastRefreshRowCount = options.lastRefreshRowCount;
+        if (options.refreshError !== undefined) state.refreshError = options.refreshError;
+      }
+
+      function showToast(message, variant = 'success') {
+        if (!els.toastStack) return;
+        const toast = document.createElement('div');
+        toast.className = `toast ${variant}`;
+        toast.textContent = message;
+        els.toastStack.appendChild(toast);
+        window.setTimeout(() => toast.remove(), 3200);
+      }
+
+      function syncRefreshButtons() {
+        const buttonStateClass = state.refreshState === 'working'
+          ? 'is-working'
+          : state.refreshState === 'success'
+            ? 'is-success'
+            : state.refreshState === 'error'
+              ? 'is-error'
+              : '';
+
+        [els.refreshButton, els.mobileRefreshButton].forEach((button) => {
+          if (!button) return;
+          button.disabled = state.refreshState === 'working';
+          button.classList.remove('is-working', 'is-success', 'is-error');
+          if (buttonStateClass) button.classList.add(buttonStateClass);
+        });
+
+        if (els.reloadButton) {
+          els.reloadButton.classList.remove('is-working', 'is-success', 'is-error');
+        }
+      }
+
+      function renderRefreshStatus() {
+        const badgeLabel = state.refreshState === 'working'
+          ? 'Working'
+          : state.refreshState === 'success'
+            ? 'Live OK'
+            : state.refreshState === 'error'
+              ? 'Failed'
+              : 'Ready';
+
+        els.refreshPanel.classList.remove('is-working', 'is-success', 'is-error');
+        els.refreshBadge.className = 'refresh-badge';
+
+        if (state.refreshState === 'working') {
+          els.refreshPanel.classList.add('is-working');
+          els.refreshBadge.classList.add('refresh-working');
+        } else if (state.refreshState === 'success') {
+          els.refreshPanel.classList.add('is-success');
+          els.refreshBadge.classList.add('refresh-success');
+        } else if (state.refreshState === 'error') {
+          els.refreshPanel.classList.add('is-error');
+          els.refreshBadge.classList.add('refresh-error');
+        } else {
+          els.refreshBadge.classList.add('refresh-idle');
+        }
+
+        els.refreshBadge.textContent = badgeLabel;
+        els.refreshLine.textContent = state.refreshMessage;
+
+        const detailParts = [];
+        if (state.lastRefreshedAt) detailParts.push(`Last refreshed ${formatTimestamp(state.lastRefreshedAt)}`);
+        if (state.refreshDetail) detailParts.push(state.refreshDetail);
+        if (state.refreshState === 'error' && state.refreshError) detailParts.push(state.refreshError);
+        els.refreshDetail.innerHTML = detailParts.length
+          ? detailParts.map((part) => `<span>${escapeHtml(part)}</span>`).join('')
+          : '<span>No refresh recorded yet.</span>';
+
+        syncRefreshButtons();
+      }
+
+      function renderHero() {
+        const generated = new Date(state.data.generatedAt);
+        const filtered = filteredRows();
+        const visibleOverdue = filtered.filter((row) => row.rowTone === 'overdue').length;
+        const uniqueReps = new Set(filtered.map((row) => row.repName)).size;
+        const noTouch = filtered.filter((row) => row.daysSinceTouch == null).length;
+
+        els.heroStats.innerHTML = [
+          { value: filtered.length, label: 'shown' },
+          { value: visibleOverdue, label: 'overdue' },
+          { value: uniqueReps, label: 'reps' },
+        ].map((item) => `
+          <div class="hero-meta-chip">
+            <strong>${escapeHtml(item.value)}</strong>
+            <span>${escapeHtml(item.label)}</span>
+          </div>
+        `).join('');
+
+        els.heroMeta.innerHTML = `
+          <div><strong>${escapeHtml(state.data.metrics.overdue)}</strong> overdue · <strong>${escapeHtml(state.data.metrics.noNote)}</strong> no-note · <strong>${escapeHtml(state.data.summary.uniqueLeadSources)}</strong> lead sources</div>
+          <div style="margin-top:6px;">Sheet <span class="mono">${escapeHtml(state.data.tabName)}</span> · updated ${escapeHtml(generated.toLocaleString())} · ${escapeHtml(noTouch)} no-touch rows in view</div>
+        `;
+
+        els.footerNote.textContent = `Dashboard reading ${state.data.tabName}. Use live refresh for a server pull, or reload view data to re-read the current payload.`;
+        renderRefreshStatus();
+      }
+
+      function renderMetrics() {
+        const cards = metricCards(state.data.metrics);
+        els.statsGrid.innerHTML = cards.map((card) => `
+          <div class="card metric-card ${card.className}">
+            <div class="metric-label">${escapeHtml(card.label)}</div>
+            <div class="metric-value">${escapeHtml(card.value)}</div>
+            <div class="metric-sub">${escapeHtml(card.sub)}</div>
+          </div>
+        `).join('');
+      }
+
+      function renderInsights() {
+        const rows = filteredRows();
+        const oldest = rows.reduce((max, row) => {
+          if (row.daysSinceTouch == null) return max;
+          return max == null ? row.daysSinceTouch : Math.max(max, row.daysSinceTouch);
+        }, null);
+        const noNoteCount = rows.filter((row) => row.hasNoNote).length;
+        const leadSources = new Set(rows.map((row) => (row.leadSource || 'Unknown')).filter(Boolean));
+        const dominantRep = rows.reduce((best, row) => {
+          best[row.repName] = (best[row.repName] || 0) + 1;
+          return best;
+        }, {});
+        const topRep = Object.entries(dominantRep).sort((a, b) => b[1] - a[1])[0];
+
+        const insights = [
+          {
+            label: 'Oldest touch gap',
+            value: oldest == null ? 'No touch yet' : `${oldest} days`,
+            note: oldest == null ? 'This view is still waiting on a first documented touch.' : 'Largest touch gap in the current filter combination.',
+          },
+          {
+            label: 'No-note concentration',
+            value: `${noNoteCount}/${rows.length || 0}`,
+            note: 'Use the no-note toggle to isolate follow-up context gaps.',
+          },
+          {
+            label: 'Dominant owner',
+            value: topRep ? topRep[0] : 'None',
+            note: topRep ? `${topRep[1]} rows in this view · ${leadSources.size} lead source${leadSources.size === 1 ? '' : 's'}.` : 'No rows match the current filters.',
+          },
+        ];
+
+        els.insightGrid.innerHTML = insights.map((insight) => `
+          <div class="card insight-card">
+            <div class="metric-label">${escapeHtml(insight.label)}</div>
+            <strong>${escapeHtml(insight.value)}</strong>
+            <div class="metric-sub">${escapeHtml(insight.note)}</div>
+          </div>
+        `).join('');
+
+        els.insightCaption.textContent = rows.length
+          ? `Showing insights for ${rows.length} matching row${rows.length === 1 ? '' : 's'}.`
+          : 'No rows match the current filters.';
+      }
+
+      function renderTopFilters() {
+        els.topFilters.innerHTML = state.data.filters.map((filter) => `
+          <button type="button" class="pill ${state.filterKey === filter.key ? 'active' : ''}" data-filter="${escapeHtml(filter.key)}">
+            ${escapeHtml(filter.label)}
+          </button>
+        `).join('');
+
+        els.topFilters.querySelectorAll('[data-filter]').forEach((button) => {
+          button.addEventListener('click', () => {
+            state.filterKey = button.getAttribute('data-filter');
+            render();
+          });
+        });
+      }
+
+      function renderAgingFilters() {
+        const options = [
+          { key: 'all', label: 'All aging buckets' },
+          { key: 'overdue', label: 'Overdue' },
+          { key: 'stale', label: 'Stale' },
+          { key: 'active', label: 'Active' },
+        ];
+
+        els.agingFilters.innerHTML = options.map((option) => `
+          <button type="button" class="pill ${state.agingView === option.key ? 'active' : ''}" data-aging="${escapeHtml(option.key)}">
+            ${escapeHtml(option.label)}
+          </button>
+        `).join('');
+
+        els.agingFilters.querySelectorAll('[data-aging]').forEach((button) => {
+          button.addEventListener('click', () => {
+            state.agingView = button.getAttribute('data-aging');
+            render();
+          });
+        });
+      }
+
+      function renderSelectOptions() {
+        const repNames = ['All reps', ...(state.data?.repNames ?? [])];
+        const leadSources = ['All lead sources', ...new Set((state.data?.rows ?? []).map((row) => row.leadSource || 'Unknown'))];
+
+        els.repSelect.innerHTML = repNames.map((repName) => `
+          <option value="${escapeHtml(repName)}" ${state.repFilter === repName ? 'selected' : ''}>${escapeHtml(repName)}</option>
+        `).join('');
+
+        els.leadSourceSelect.innerHTML = leadSources.map((source) => `
+          <option value="${escapeHtml(source)}" ${state.leadSource === source ? 'selected' : ''}>${escapeHtml(source)}</option>
+        `).join('');
+
+        els.sortSelect.value = state.sortBy;
+        els.densitySelect.value = state.density;
+      }
+
+      function renderRepCards() {
+        const visibleReps = filteredRepCards();
+        if (!visibleReps.length) {
+          els.repGrid.innerHTML = '<div class="card insight-card"><div class="metric-label">No rep cards</div><div class="metric-sub">No rep rows match the current filters. Reset filters to widen the view.</div></div>';
+          return;
+        }
+
+        els.repGrid.innerHTML = visibleReps.map((rep) => `
+          <button type="button" class="card rep-card ${state.repFilter === rep.repName ? 'active' : ''}" data-rep-card="${escapeHtml(rep.repName)}">
+            <div class="rep-top">
+              <div>
+                <div class="rep-name">${escapeHtml(rep.repName)}</div>
+                <div class="rep-total">${escapeHtml(rep.totalDrafts)} draft quotes</div>
+              </div>
+              <div class="rep-score">${escapeHtml(rep.scoreLabel)}</div>
+            </div>
+            <div class="rep-metrics">
+              <div class="mini overdue"><strong>${escapeHtml(rep.overdue)}</strong><span>Overdue</span></div>
+              <div class="mini stale"><strong>${escapeHtml(rep.stale)}</strong><span>Stale</span></div>
+              <div class="mini active"><strong>${escapeHtml(rep.active)}</strong><span>Active</span></div>
+            </div>
+          </button>
+        `).join('');
+
+        els.repGrid.querySelectorAll('[data-rep-card]').forEach((button) => {
+          button.addEventListener('click', () => {
+            const repName = button.getAttribute('data-rep-card');
+            state.repFilter = state.repFilter === repName ? 'All reps' : repName;
+            render();
+          });
+        });
+      }
+
+      function renderRepFilters() {
+        const repNames = ['All reps', ...(state.data?.repNames ?? [])];
+        els.repFilters.innerHTML = repNames.map((repName) => `
+          <button type="button" class="pill ${state.repFilter === repName ? 'active' : ''}" data-rep-filter="${escapeHtml(repName)}">
+            ${escapeHtml(repName)}
+          </button>
+        `).join('');
+
+        els.repFilters.querySelectorAll('[data-rep-filter]').forEach((button) => {
+          button.addEventListener('click', () => {
+            state.repFilter = button.getAttribute('data-rep-filter');
+            render();
+          });
+        });
+      }
+
+      function renderToggleState() {
+        document.querySelectorAll('[data-toggle]').forEach((button) => {
+          const key = button.getAttribute('data-toggle');
+          button.classList.toggle('active', Boolean(state[key]));
+        });
+      }
+
+      function renderMobileActionBar(rows) {
+        const activeFilters = activeFilterCount();
+        const filterLabel = [
+          labelForFilterKey(state.filterKey),
+          state.repFilter !== 'All reps' ? state.repFilter : '',
+          state.agingView !== 'all' ? state.agingView : '',
+        ].filter(Boolean).join(' · ');
+
+        els.mobileResultsSummary.textContent = `${rows.length} shown`;
+        els.mobileFilterSummary.textContent = activeFilters ? `${activeFilters} filter${activeFilters === 1 ? '' : 's'} · ${filterLabel}` : 'All drafts';
+        els.mobileResetFilters.disabled = !hasCustomFilters();
+      }
+
+      function renderRows() {
+        const rows = filteredRows();
+        els.tableWrap.classList.toggle('compact-mode', state.density === 'compact');
+        els.rowsBody.innerHTML = rows.map((row) => `
+          <tr class="${toneClass(row.rowTone)}-row">
+            <td>
+              ${row.quoteUrl ? `<a href="${escapeHtml(row.quoteUrl)}" target="_blank" rel="noreferrer">${escapeHtml(row.quoteNumber)}</a>` : escapeHtml(row.quoteNumber)}
+              <div class="subtle">${escapeHtml(row.quoteTitle || 'Quote')}</div>
+            </td>
+            <td>
+              ${row.clientUrl ? `<a href="${escapeHtml(row.clientUrl)}" target="_blank" rel="noreferrer">${escapeHtml(row.clientName)}</a>` : escapeHtml(row.clientName)}
+              <div class="subtle">Client</div>
+            </td>
+            <td>
+              ${escapeHtml(row.repName)}
+              <div class="subtle">${escapeHtml(row.nativeSalesperson || '')}</div>
+            </td>
+            <td><strong>${row.daysSinceTouch == null ? '—' : escapeHtml(row.daysSinceTouch)}</strong></td>
+            <td>${escapeHtml(row.lastTouchAt || 'No touch yet')}</td>
+            <td>${escapeHtml(row.lastTouchBy || '—')}</td>
+            <td>${escapeHtml(row.leadSource || 'Unknown')}</td>
+            <td class="note-cell"><div class="note">${escapeHtml(row.lastNoteSummary)}</div></td>
+            <td><span class="status ${toneClass(row.rowTone)}">${escapeHtml(row.status)}</span></td>
+          </tr>
+        `).join('');
+
+        els.mobileList.innerHTML = rows.map((row) => `
+          <article class="quote-card ${toneClass(row.rowTone)}">
+            <div class="quote-card-top">
+              <div class="quote-card-title">
+                <div>
+                  <span class="quote-link">${escapeHtml(row.quoteNumber)}</span>
+                </div>
+                <div class="quote-card-client">
+                  ${row.clientUrl ? `<a href="${escapeHtml(row.clientUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.clientName)}</a>` : escapeHtml(row.clientName)}
+                </div>
+                <div class="quote-card-detail">${escapeHtml(row.quoteTitle || 'Quote')}</div>
+              </div>
+              <div class="quote-card-statuses">
+                <span class="status ${toneClass(row.rowTone)}">${escapeHtml(row.status)}</span>
+                <span class="quote-age">${row.daysSinceTouch == null ? 'No touch yet' : `${escapeHtml(row.daysSinceTouch)}d since touch`}</span>
+              </div>
+            </div>
+            <div class="quote-card-meta">
+              <span><strong>Rep:</strong> ${escapeHtml(row.repName)}</span>
+              <span><strong>Lead:</strong> ${escapeHtml(row.leadSource || 'Unknown')}</span>
+              <span><strong>Touch:</strong> ${escapeHtml(row.lastTouchAt || 'No touch yet')}</span>
+              <span><strong>By:</strong> ${escapeHtml(row.lastTouchBy || '—')}</span>
+            </div>
+            ${(row.hasNoNote || row.missingOwner) ? `
+              <div class="quote-card-flags">
+                ${row.hasNoNote ? '<span class="flag">No note</span>' : ''}
+                ${row.missingOwner ? '<span class="flag">Missing owner</span>' : ''}
+              </div>
+            ` : ''}
+            <div class="quote-card-actions">
+              ${row.quoteUrl ? `<a class="quote-action-btn primary" href="${escapeHtml(row.quoteUrl)}" target="_blank" rel="noopener noreferrer">Open in Jobber</a>` : ''}
+              ${row.clientUrl ? `<a class="quote-action-btn" href="${escapeHtml(row.clientUrl)}" target="_blank" rel="noopener noreferrer">Client</a>` : ''}
+            </div>
+          </article>
+        `).join('');
+
+        els.tableSubtitle.textContent = `${rows.length} row${rows.length === 1 ? '' : 's'} shown · ${state.repFilter} · ${labelForFilterKey(state.filterKey)} · ${state.agingView === 'all' ? 'all aging buckets' : state.agingView}.`;
+        els.resultsSummary.textContent = rows.length
+          ? `${rows.length} rows visible · sorted by ${state.sortBy}.`
+          : 'No rows match the current filters.';
+        els.tableState.innerHTML = rows.length
+          ? ''
+          : '<div class="empty-state">No quotes match the current filters.</div>';
+        renderMobileActionBar(rows);
+      }
+
+      function render() {
+        if (!state.data) return;
+        renderHero();
+        renderMetrics();
+        renderInsights();
+        renderTopFilters();
+        renderAgingFilters();
+        renderSelectOptions();
+        renderRepCards();
+        renderRepFilters();
+        renderToggleState();
+        renderRows();
+      }
+
+      async function loadDashboardData(options = {}) {
+        const useEmbedded = options.useEmbedded !== false;
+        const previousCount = state.data?.rows?.length ?? null;
+
+        if (useEmbedded && window.__KC_DASHBOARD_DATA__) {
+          state.data = window.__KC_DASHBOARD_DATA__;
+        } else {
+          const response = await fetch(`./data/live-data.json?ts=${Date.now()}`, { cache: 'no-store' });
+          if (!response.ok) {
+            throw new Error(`Unable to load dashboard data (${response.status})`);
+          }
+          state.data = await response.json();
+          window.__KC_DASHBOARD_DATA__ = state.data;
+        }
+
+        if (!state.lastRefreshedAt) {
+          setRefreshState('idle', 'Dashboard data loaded.', `Loaded ${state.data.rows.length} rows.`, {
+            lastRefreshedAt: state.data.generatedAt,
+            lastRefreshRowCount: state.data.rows.length,
+            refreshError: '',
+          });
+        } else if (options.markReload) {
+          setRefreshState(
+            'success',
+            'View data reloaded.',
+            summarizeRowChange(previousCount, state.data.rows.length) || `Loaded ${state.data.rows.length} rows.`,
+            {
+              lastRefreshedAt: state.lastRefreshedAt,
+              lastRefreshRowCount: state.data.rows.length,
+              refreshError: '',
+            }
+          );
+          showToast('View data reloaded.', 'success');
+        }
+
+        render();
+      }
+
+      async function refreshFromHelper() {
+        if (window.location.protocol !== 'file:') {
+          const previousCount = state.data?.rows?.length ?? null;
+          setRefreshState('working', 'Refreshing live data…', 'Pulling latest rows from the server.', {
+            lastRefreshedAt: state.lastRefreshedAt,
+            lastRefreshRowCount: state.lastRefreshRowCount,
+            refreshError: '',
+          });
+          renderRefreshStatus();
+          try {
+            const response = await fetch('/api/refresh', {
+              method: 'POST',
+              headers: { 'content-type': 'application/json' },
+              body: JSON.stringify({}),
+            });
+            const payload = await response.json().catch(() => ({}));
+            if (!response.ok) {
+              throw new Error(payload.error || `Unable to refresh dashboard data (${response.status})`);
+            }
+            state.data = payload;
+            window.__KC_DASHBOARD_DATA__ = state.data;
+            const rowChange = summarizeRowChange(previousCount, state.data.rows.length);
+            setRefreshState('success', 'Live data refreshed.', rowChange || `Loaded ${state.data.rows.length} rows.`, {
+              lastRefreshedAt: new Date().toISOString(),
+              lastRefreshRowCount: state.data.rows.length,
+              refreshError: '',
+            });
+            render();
+            els.tableState.innerHTML = '<div class="empty-state">Live dashboard refresh succeeded.</div>';
+            showToast(`Live data refreshed. ${rowChange || `${state.data.rows.length} rows loaded.`}`, 'success');
+            window.setTimeout(() => {
+              if (els.tableState.textContent?.includes('Live dashboard refresh succeeded.')) {
+                els.tableState.innerHTML = '';
+              }
+            }, 2500);
+            return;
+          } catch (error) {
+            const message = error instanceof Error ? error.message : String(error);
+            setRefreshState('error', 'Live refresh failed.', state.refreshDetail, {
+              lastRefreshedAt: state.lastRefreshedAt,
+              lastRefreshRowCount: state.lastRefreshRowCount,
+              refreshError: message,
+            });
+            renderRefreshStatus();
+            els.tableState.innerHTML = `<div class="error-state">${escapeHtml(`Live refresh failed: ${message}`)}</div>`;
+            showToast(`Live refresh failed: ${message}`, 'error');
+            return;
+          }
+        }
+
+        const command = [
+          'cd /home/plife507/Projects/KC-SALES-SYNC-dashboard',
+          'set -a && source ~/.secrets/aya/kc-sales-sync.env && set +a',
+          'npm run dashboard:data'
+        ].join(' && ');
+        setRefreshState('idle', 'Static preview mode.', 'Run the refresh command, then use Reload view data.', {
+          lastRefreshedAt: state.lastRefreshedAt,
+          lastRefreshRowCount: state.lastRefreshRowCount,
+          refreshError: '',
+        });
+        renderRefreshStatus();
+        try {
+          await navigator.clipboard.writeText(command);
+          window.alert('Refresh command copied. Run it, then click “Reload view data”.\n\n' + command);
+        } catch {
+          window.prompt('Run this command, then reload the page:', command);
+        }
+      }
+
+      function resetFilters() {
+        Object.assign(state, getDefaultControls());
+        render();
+      }
+
+      els.repSelect.addEventListener('change', (event) => {
+        state.repFilter = event.target.value;
+        render();
+      });
+
+      els.leadSourceSelect.addEventListener('change', (event) => {
+        state.leadSource = event.target.value;
+        render();
+      });
+
+      els.sortSelect.addEventListener('change', (event) => {
+        state.sortBy = event.target.value;
+        render();
+      });
+
+      els.densitySelect.addEventListener('change', (event) => {
+        state.density = event.target.value;
+        render();
+      });
+
+      Array.from(document.querySelectorAll('[data-toggle]')).forEach((button) => {
+        button.addEventListener('click', () => {
+          const key = button.getAttribute('data-toggle');
+          state[key] = !state[key];
+          render();
+        });
+      });
+
+      els.clearFilters.addEventListener('click', resetFilters);
+      els.refreshButton.addEventListener('click', refreshFromHelper);
+      els.reloadButton.addEventListener('click', () => {
+        setRefreshState('working', 'Reloading view data…', 'Re-reading the current dashboard payload.', {
+          lastRefreshedAt: state.lastRefreshedAt,
+          lastRefreshRowCount: state.lastRefreshRowCount,
+          refreshError: '',
+        });
+        if (els.reloadButton) els.reloadButton.classList.add('is-working');
+        renderRefreshStatus();
+        loadDashboardData({ useEmbedded: false, markReload: true }).catch(showError).finally(() => {
+          if (els.reloadButton) els.reloadButton.classList.remove('is-working');
+        });
+      });
+      els.mobileJumpFilters.addEventListener('click', () => {
+        els.mobileControls.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+      els.mobileResetFilters.addEventListener('click', resetFilters);
+      els.mobileRefreshButton.addEventListener('click', refreshFromHelper);
+
+      function showError(error) {
+        const message = error instanceof Error ? error.message : String(error);
+        const diskHint = window.location.protocol === 'file:'
+          ? ' This page needs a generated data file before it can load. Refresh the data, then reload the page.'
+          : '';
+        const fullMessage = message + diskHint;
+        setRefreshState('error', 'Dashboard unavailable.', state.refreshDetail, {
+          lastRefreshedAt: state.lastRefreshedAt,
+          lastRefreshRowCount: state.lastRefreshRowCount,
+          refreshError: fullMessage,
+        });
+        renderRefreshStatus();
+        els.tableState.innerHTML = `<div class="error-state">${escapeHtml(fullMessage)}</div>`;
+        els.heroMeta.textContent = 'Dashboard unavailable.';
+      }
+
+      loadDashboardData().catch(showError);
+    </script>
+  </body>
+</html>

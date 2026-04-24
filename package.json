@@ -9,11 +9,16 @@
     "gcp-build": "true",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
-    "local": "npx functions-framework --target=kcSalesSync --source=dist/function.js",
-    "start": "npx functions-framework --target=kcSalesSync --source=dist/function.js",
+    "local": "sh -c 'npx functions-framework --target=${FUNCTION_TARGET:-kcSalesSync} --source=${FUNCTION_SOURCE:-dist/function.js}'",
+    "start": "sh -c 'npx functions-framework --target=${FUNCTION_TARGET:-kcSalesSync} --source=${FUNCTION_SOURCE:-dist/function.js}'",
+    "local:sync": "npx functions-framework --target=kcSalesSync --source=dist/function.js",
+    "start:sync": "npx functions-framework --target=kcSalesSync --source=dist/function.js",
+    "local:dashboard": "npx functions-framework --target=kcSalesDashboard --source=dist/dashboard-function.js",
+    "start:dashboard": "npx functions-framework --target=kcSalesDashboard --source=dist/dashboard-function.js",
     "sync": "tsx src/index.ts sync",
     "sample": "tsx src/index.ts sample",
-    "sheet:init": "tsx src/index.ts sheet:init"
+    "sheet:init": "tsx src/index.ts sheet:init",
+    "dashboard:data": "tsx src/dashboard.ts"
   },
   "dependencies": {
     "@google-cloud/functions-framework": "^5.0.2",
