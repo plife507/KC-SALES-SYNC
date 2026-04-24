@@ -1,70 +1,55 @@
-# KC-SALES-SYNC
+# KC Sales Sync + Dashboard
 
-Track sales-touch activity on Jobber draft quotes and sync the result into Google Sheets.
+This repo contains **two separate Cloud Run services**:
 
-## Goal
+1. **Backend sync service** → `kc-sales-sync`
+2. **Frontend dashboard service** → `kc-sales-dashboard`
 
-Build a sheet-oriented sync that answers:
-- which draft quotes exist
-- who owns them
-- when they were created
-- when they were last updated
-- when sales last touched them via notes
-- who last touched them
-- the full text of the latest note
+## How the deploys are split
 
-## Prototype scope
+Both services deploy from the **same repo**, but they use different runtime entrypoints:
 
-Run as a Cloud Run source-deployed service using env-provided Jobber and Google credentials.
-Local `gog` auth remains an optional fallback for development convenience, but it is disabled by default in Cloud Run.
+- **Sync backend**
+  - `FUNCTION_TARGET=kcSalesSync`
+  - `FUNCTION_SOURCE=dist/function.js`
+- **Dashboard frontend/API**
+  - `FUNCTION_TARGET=kcSalesDashboard`
+  - `FUNCTION_SOURCE=dist/dashboard-function.js`
 
-## Current architecture
+That is the split: same codebase, different Cloud Run service names, different Functions Framework targets.
 
-- `src/adapters/jobber.ts` — reads draft quotes and fully paginated quote notes from Jobber GraphQL
-- `src/lib/touch.ts` — computes last-touch fields from quote notes
-- `src/adapters/sheets.ts` — creates/updates a Google Sheet tab and applies managed formatting/rules
-- `src/index.ts` — CLI entrypoint for sheet init and sync
-- `src/function.ts` — Cloud Run HTTP entrypoint following the `kc-pp-sync` pattern
-- `test/` — reducer and shaping tests
+---
 
-## Required env
+## Service 1 — Backend sheet sync (`kc-sales-sync`)
+
+Purpose:
+- read draft quotes + notes from Jobber
+- compute touch state
+- write the synced result into the Google Sheet
+- maintain the Log tab
+
+### Backend required env
 
 - `SPREADSHEET_ID`
-- `JOBBER_ACCESS_TOKEN` or the refresh-token trio below
-- `JOBBER_CLIENT_ID`
-- `JOBBER_CLIENT_SECRET`
-- `JOBBER_REFRESH_TOKEN`
+- `JOBBER_ACCESS_TOKEN` or refresh-token trio:
+  - `JOBBER_CLIENT_ID`
+  - `JOBBER_CLIENT_SECRET`
+  - `JOBBER_REFRESH_TOKEN`
 - `GOOGLE_CLIENT_ID`
 - `GOOGLE_CLIENT_SECRET`
 - `GOOGLE_REFRESH_TOKEN`
 
-## Optional env
+### Backend optional env
 
-- `JOBBER_API_URL` default: `https://api.getjobber.com/api/graphql`
-- `JOBBER_API_VERSION` default: `2025-04-16`
-- `JOBBER_REQUEST_DELAY_MS` default: `400`
-- `JOBBER_NOTES_PAGE_SIZE` default: `50`
 - `SHEET_TAB` default: `DRAFT`
-- `SHEET_TABS` optional comma-separated list of same-shape tabs to keep in sync with the same dataset
+- `SHEET_TABS` optional comma-separated same-shape tabs
 - `QUOTE_LIMIT` default: `100`
 - `QUOTE_PAGE_SIZE` default: `10`
-- `ALLOW_DEBUG_COMMANDS` default: `false`; required for `sample` in HTTP/CLI runtime
+- `ALLOW_DEBUG_COMMANDS` default: `false`
 - `ALLOW_LOCAL_SHEETS_FALLBACK` default: `true` locally, `false` in Cloud Run
-- `GOG_ACCOUNT`, `GOG_CREDENTIALS_PATH` for local `gog`-backed Sheets auth fallback only
+- `TZ=America/Los_Angeles`
 
-## Commands
-
-- `npm run sample`
-- `npm run sync`
-- `npm run sheet:init`
-- `npm run build`
-- `npm run typecheck`
-
-## Deployment
-
-Runs as a **Google Cloud Run** service using the same source-deploy pattern as `kc-pp-sync`.
-
-Deploy:
+### Deploy backend sync
 
 ```bash
 gcloud run deploy kc-sales-sync \
@@ -75,46 +60,106 @@ gcloud run deploy kc-sales-sync \
   --memory 512Mi \
   --cpu 0.1666 \
   --timeout 300 \
-  --max-instances 1
+  --max-instances 1 \
+  --set-env-vars FUNCTION_TARGET=kcSalesSync,FUNCTION_SOURCE=dist/function.js,TZ=America/Los_Angeles,ALLOW_DEBUG_COMMANDS=false,ALLOW_LOCAL_SHEETS_FALLBACK=false,SHEET_TAB=DRAFT \
+  --set-secrets SPREADSHEET_ID=KC_SALES_SYNC_SPREADSHEET_ID:latest,JOBBER_ACCESS_TOKEN=JOBBER_ACCESS_TOKEN:latest,JOBBER_CLIENT_ID=JOBBER_CLIENT_ID:latest,JOBBER_CLIENT_SECRET=JOBBER_CLIENT_SECRET:latest,JOBBER_REFRESH_TOKEN=JOBBER_REFRESH_TOKEN:latest,GOOGLE_CLIENT_ID=KC_SALES_SYNC_GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=KC_SALES_SYNC_GOOGLE_CLIENT_SECRET:latest,GOOGLE_REFRESH_TOKEN=KC_SALES_SYNC_GOOGLE_REFRESH_TOKEN:latest
 ```
 
-Timezone/runtime note:
+### Backend local commands
 
-- Set `TZ=America/Los_Angeles`
-- Sheet-facing timestamps are already formatted in Pacific time in code
-
-Manual HTTP trigger shape:
-
-```json
-{ "command": "sync" }
+```bash
+npm run build
+npm run local:sync
+npm run sync
+npm run sheet:init
 ```
 
-Notes:
-- `sync` writes the same output to every tab listed in `SHEET_TABS` when present.
-- each sync appends a run record to the `Log` tab in the target spreadsheet.
-- `sample` is for debug use and is blocked unless `ALLOW_DEBUG_COMMANDS=true`.
+---
 
-Optional body fields:
+## Service 2 — Dashboard frontend (`kc-sales-dashboard`)
 
-- `spreadsheetId`
-- `tabName` (single-tab override; otherwise `SHEET_TABS` or `SHEET_TAB` is used)
-- `limit`
-- `pageSize`
-- `title` for `sheet:init`
+Purpose:
+- serve the dashboard UI
+- read synced quote data from the sales sheet
+- expose refresh/data routes for the dashboard
 
-## Initial target columns
+Important:
+- the dashboard currently reads from the **Google Sheet**, not directly from Jobber
+- flow is: **Jobber → kc-sales-sync → Google Sheet → dashboard**
 
-- Quote Number
-- Quote Title
-- Client Name
-- Draft Created
-- Last Updated
-- Native Salesperson
-- KC Sales Rep
-- Lead Source
-- Quote Status
-- Last Note Created At
-- Last Note Edited At
-- Last Sales Touch At
-- Last Sales Touch By
-- Last Note Text
+### Dashboard required env
+
+- `SPREADSHEET_ID`
+- `GOOGLE_CLIENT_ID`
+- `GOOGLE_CLIENT_SECRET`
+- `GOOGLE_REFRESH_TOKEN`
+
+### Dashboard optional env
+
+- `DASHBOARD_SHEET_TAB` default: `Draft Quote Sales Touch`
+- `ALLOW_LOCAL_SHEETS_FALLBACK` default: `true` locally, `false` in Cloud Run
+- `TZ=America/Los_Angeles`
+
+### Deploy dashboard
+
+```bash
+gcloud run deploy kc-sales-dashboard \
+  --source . \
+  --region us-central1 \
+  --project aya-gservicies \
+  --allow-unauthenticated \
+  --memory 512Mi \
+  --cpu 0.1666 \
+  --timeout 300 \
+  --max-instances 1 \
+  --set-env-vars FUNCTION_TARGET=kcSalesDashboard,FUNCTION_SOURCE=dist/dashboard-function.js,TZ=America/Los_Angeles,DASHBOARD_SHEET_TAB="Draft Quote Sales Touch",ALLOW_DEBUG_COMMANDS=false,ALLOW_LOCAL_SHEETS_FALLBACK=false \
+  --set-secrets SPREADSHEET_ID=KC_SALES_SYNC_SPREADSHEET_ID:latest,GOOGLE_CLIENT_ID=KC_SALES_SYNC_GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=KC_SALES_SYNC_GOOGLE_CLIENT_SECRET:latest,GOOGLE_REFRESH_TOKEN=KC_SALES_SYNC_GOOGLE_REFRESH_TOKEN:latest
+```
+
+### Dashboard routes
+
+- `GET /`
+- `GET /data/live-data.json`
+- `GET /data/live-data.js`
+- `POST /api/refresh`
+- `GET /healthz`
+
+### Dashboard local commands
+
+```bash
+npm run build
+npm run local:dashboard
+npm run dashboard:data
+```
+
+---
+
+## Helpful local service switching
+
+Default shared start script uses the sync backend unless you override it:
+
+```bash
+FUNCTION_TARGET=kcSalesDashboard FUNCTION_SOURCE=dist/dashboard-function.js npm start
+```
+
+or
+
+```bash
+FUNCTION_TARGET=kcSalesSync FUNCTION_SOURCE=dist/function.js npm start
+```
+
+---
+
+## Files added for dashboard
+
+- `src/dashboard.ts`
+- `src/dashboard-function.ts`
+- `dashboard/index.html`
+- `dashboard/README.md`
+- built dist artifacts for dashboard entrypoints
+
+## Notes
+
+- `dashboard/data/` is generated and ignored.
+- Cloud Run should not rely on `gog`; keep `ALLOW_LOCAL_SHEETS_FALLBACK=false` there.
+- The backend sync remains the writer to the sheet. The dashboard is currently a reader of the synced sheet state.
