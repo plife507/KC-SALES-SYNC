@@ -71,9 +71,9 @@ function buildConditionalRules(helperColumnLetter: string) {
 
   const ageRules = [
     { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2>=NOW()-2)`, color: rgb(217, 234, 211) },
-    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-2,$${helperColumnLetter}2>=NOW()-7)`, color: rgb(255, 242, 204) },
-    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-7,$${helperColumnLetter}2>=NOW()-14)`, color: rgb(252, 229, 205) },
-    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-14)`, color: rgb(244, 204, 204) },
+    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-2,$${helperColumnLetter}2>=NOW()-5)`, color: rgb(255, 242, 204) },
+    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-5,$${helperColumnLetter}2>=NOW()-10)`, color: rgb(252, 229, 205) },
+    { formula: `=AND(ISNUMBER($${helperColumnLetter}2),$${helperColumnLetter}2<NOW()-10)`, color: rgb(244, 204, 204) },
   ] as const;
 
   return { noNoteRule, ageRules };

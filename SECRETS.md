@@ -20,6 +20,11 @@ Additional secrets:
 - `JOBBER_CLIENT_SECRET` -> `JOBBER_CLIENT_SECRET:latest`
 - `JOBBER_REFRESH_TOKEN` -> `JOBBER_REFRESH_TOKEN:latest`
 
+Runtime refresh-token rotation:
+- default write target: `projects/823212137840/secrets/JOBBER_REFRESH_TOKEN`
+- override env: `JOBBER_REFRESH_TOKEN_SECRET`
+- service account needs permission to add Secret Manager versions for `JOBBER_REFRESH_TOKEN`
+
 Recommended env:
 - `FUNCTION_TARGET=kcSalesSync`
 - `FUNCTION_SOURCE=dist/function.js`

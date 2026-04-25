@@ -1,5 +1,5 @@
-type DashboardBucketKey = "overdue" | "stale" | "active";
-type FilterKey = "all" | "overdue" | "stale" | "active" | "unassigned" | "no-note";
+type DashboardBucketKey = "fresh" | "attention" | "stale" | "overdue";
+type FilterKey = "all" | "fresh" | "attention" | "stale" | "overdue" | "unassigned" | "no-note";
 export type DashboardRow = {
     quoteNumber: string;
     quoteUrl: string;
@@ -24,7 +24,8 @@ export type DashboardRepCard = {
     totalDrafts: number;
     overdue: number;
     stale: number;
-    active: number;
+    attention: number;
+    fresh: number;
     scoreLabel: string;
     note: string;
 };
@@ -32,7 +33,8 @@ export type DashboardMetric = {
     totalDrafts: number;
     overdue: number;
     stale: number;
-    active: number;
+    attention: number;
+    fresh: number;
     unassigned: number;
     noNote: number;
 };

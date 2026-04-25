@@ -1,9 +1,9 @@
 export declare function requireEnv(name: string): string;
 export declare const runtimeConfig: {
     readonly sheetTitle: "kc-sales-sync";
-    readonly defaultTabName: "DRAFT";
+    readonly defaultTabName: "Draft Quote Sales Touch";
     readonly defaultQuoteLimit: 100;
-    readonly defaultQuotePageSize: 10;
+    readonly defaultQuotePageSize: 5;
     readonly spreadsheetId: string | undefined;
     readonly jobber: {
         readonly accessToken: string | undefined;

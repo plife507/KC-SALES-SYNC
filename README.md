@@ -41,13 +41,16 @@ Purpose:
 
 ### Backend optional env
 
-- `SHEET_TAB` default: `DRAFT`
+- `SHEET_TAB` default: `Draft Quote Sales Touch`
 - `SHEET_TABS` optional comma-separated same-shape tabs
 - `QUOTE_LIMIT` default: `100`
-- `QUOTE_PAGE_SIZE` default: `10`
+- `QUOTE_PAGE_SIZE` default: `5`
+- `JOBBER_REFRESH_TOKEN_SECRET` default: `projects/823212137840/secrets/JOBBER_REFRESH_TOKEN`
 - `ALLOW_DEBUG_COMMANDS` default: `false`
 - `ALLOW_LOCAL_SHEETS_FALLBACK` default: `true` locally, `false` in Cloud Run
 - `TZ=America/Los_Angeles`
+
+If Jobber rotates the refresh token, the sync service writes a new Secret Manager version best-effort. The Cloud Run service account needs permission to add versions to `JOBBER_REFRESH_TOKEN`.
 
 ### Deploy backend sync
 
@@ -61,7 +64,7 @@ gcloud run deploy kc-sales-sync \
   --cpu 0.1666 \
   --timeout 300 \
   --max-instances 1 \
-  --set-env-vars FUNCTION_TARGET=kcSalesSync,FUNCTION_SOURCE=dist/function.js,TZ=America/Los_Angeles,ALLOW_DEBUG_COMMANDS=false,ALLOW_LOCAL_SHEETS_FALLBACK=false,SHEET_TAB=DRAFT \
+  --set-env-vars FUNCTION_TARGET=kcSalesSync,FUNCTION_SOURCE=dist/function.js,TZ=America/Los_Angeles,ALLOW_DEBUG_COMMANDS=false,ALLOW_LOCAL_SHEETS_FALLBACK=false,SHEET_TAB="Draft Quote Sales Touch" \
   --set-secrets SPREADSHEET_ID=KC_SALES_SYNC_SPREADSHEET_ID:latest,JOBBER_ACCESS_TOKEN=JOBBER_ACCESS_TOKEN:latest,JOBBER_CLIENT_ID=JOBBER_CLIENT_ID:latest,JOBBER_CLIENT_SECRET=JOBBER_CLIENT_SECRET:latest,JOBBER_REFRESH_TOKEN=JOBBER_REFRESH_TOKEN:latest,GOOGLE_CLIENT_ID=KC_SALES_SYNC_GOOGLE_CLIENT_ID:latest,GOOGLE_CLIENT_SECRET=KC_SALES_SYNC_GOOGLE_CLIENT_SECRET:latest,GOOGLE_REFRESH_TOKEN=KC_SALES_SYNC_GOOGLE_REFRESH_TOKEN:latest
 ```
 
@@ -86,6 +89,7 @@ Purpose:
 Important:
 - the dashboard currently reads from the **Google Sheet**, not directly from Jobber
 - flow is: **Jobber → kc-sales-sync → Google Sheet → dashboard**
+- current accepted posture: the dashboard is public to anyone with the link
 
 ### Dashboard required env
 

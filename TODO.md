@@ -36,6 +36,13 @@
 - [x] Make no-note comment writes idempotent/safer
 - [x] Verify live conditional-format scope on quote `110976`
 
+## Phase 4 — Review hardening backlog
+- [x] Accepted for now: keep `kc-sales-dashboard` public to anyone with the link (`--allow-unauthenticated`), despite quote/client/note-derived data exposure.
+- [ ] Accepted for now: keep `/api/refresh` spreadsheet/tab request-body overrides as-is. This is intentionally deferred unless dashboard auth posture changes.
+- [x] Persist rotated Jobber refresh tokens durably using a best-effort Secret Manager add-version path, so Cloud Run cold starts do not fall back to a stale `JOBBER_REFRESH_TOKEN`.
+- [x] Update `scripts/run-sync.sh` defaults to match current repo defaults: `SHEET_TAB="Draft Quote Sales Touch"` and `QUOTE_PAGE_SIZE=5`.
+- [x] Remove the dashboard `CARD_ROW_LIMIT=200` slice so metrics and rendered rows use the same dataset.
+
 ## Current status
 - Repo created
 - TypeScript scaffold created

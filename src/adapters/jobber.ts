@@ -4,6 +4,7 @@ import type { DraftQuote, QuoteNote, QuoteNoteActor } from "../types.js";
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const MAX_PAGE_SIZE = 10;
 const DEFAULT_QUERY_COST = 500;
+const MAX_THROTTLE_RETRIES = 4;
 
 type Maybe<T> = T | null | undefined;
 
@@ -120,6 +121,36 @@ const throttleManager = new SimpleThrottleManager();
 let cachedAccessToken = runtimeConfig.jobber.accessToken;
 let cachedRefreshToken = runtimeConfig.jobber.refreshToken;
 
+async function persistRotatedRefreshToken(refreshToken: string): Promise<void> {
+  const secretName = process.env.JOBBER_REFRESH_TOKEN_SECRET ?? "projects/823212137840/secrets/JOBBER_REFRESH_TOKEN";
+  const { google } = await import("googleapis");
+  const auth = new google.auth.GoogleAuth({
+    scopes: ["https://www.googleapis.com/auth/cloud-platform"],
+  });
+  const client = await auth.getClient();
+  const accessToken = await client.getAccessToken();
+  if (!accessToken.token) {
+    throw new Error("Google ADC did not return an access token");
+  }
+
+  const response = await fetch(`https://secretmanager.googleapis.com/v1/${secretName}:addVersion`, {
+    method: "POST",
+    headers: {
+      authorization: `Bearer ${accessToken.token}`,
+      "content-type": "application/json",
+    },
+    body: JSON.stringify({
+      payload: {
+        data: Buffer.from(refreshToken).toString("base64"),
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    throw new Error(`Secret Manager refresh token update failed (${response.status}): ${await response.text()}`);
+  }
+}
+
 function decodeJwtExp(token: string): number | null {
   try {
     const [, payload] = token.split(".");
@@ -142,6 +173,7 @@ async function refreshJobberAccessToken(): Promise<string> {
   const clientId = runtimeConfig.jobber.clientId ?? requireEnv("JOBBER_CLIENT_ID");
   const clientSecret = runtimeConfig.jobber.clientSecret ?? requireEnv("JOBBER_CLIENT_SECRET");
   const refreshToken = cachedRefreshToken ?? requireEnv("JOBBER_REFRESH_TOKEN");
+  const previousRefreshToken = refreshToken;
 
   const response = await fetch("https://api.getjobber.com/api/oauth/token", {
     method: "POST",
@@ -168,6 +200,11 @@ async function refreshJobberAccessToken(): Promise<string> {
   cachedAccessToken = payload.access_token;
   if (payload.refresh_token) {
     cachedRefreshToken = payload.refresh_token;
+    if (payload.refresh_token !== previousRefreshToken) {
+      await persistRotatedRefreshToken(payload.refresh_token).catch((error) => {
+        console.warn(`Jobber refresh token rotated, but Secret Manager update failed: ${error instanceof Error ? error.message : String(error)}`);
+      });
+    }
   }
   return cachedAccessToken;
 }
@@ -357,16 +394,26 @@ async function runJobberQuery<T>(query: string): Promise<T> {
     result = await attempt(token);
   }
 
-  if (result.kind === "throttled") {
-    console.log(`Jobber throttled. Waiting for budget recovery (~${result.requestedCost} units)...`);
+  let throttleRetries = 0;
+  while (result.kind === "throttled") {
+    throttleRetries += 1;
+    console.log(
+      `Jobber throttled. Waiting for budget recovery (~${result.requestedCost} units)... retry ${throttleRetries}/${MAX_THROTTLE_RETRIES}`,
+    );
     await throttleManager.waitIfNeeded(result.requestedCost);
     result = await attempt(token);
-    if (result.kind === "throttled") {
-      throw new Error(`Jobber THROTTLED on retry: ${result.errors.join("; ")}`);
-    }
+
     if (result.kind === "auth") {
       token = await refreshJobberAccessToken();
       result = await attempt(token);
+    }
+
+    if (result.kind !== "throttled") {
+      break;
+    }
+
+    if (throttleRetries >= MAX_THROTTLE_RETRIES) {
+      throw new Error(`Jobber THROTTLED after ${MAX_THROTTLE_RETRIES} retries: ${result.errors.join("; ")}`);
     }
   }
 
@@ -443,9 +490,16 @@ async function fetchAllQuoteNotes(
   quoteId: string,
   initialConnection: Maybe<JobberQuoteNotesConnection>,
 ): Promise<QuoteNote[]> {
-  const notes = (initialConnection?.nodes ?? []).map(mapQuoteNote).filter((note): note is QuoteNote => note !== null);
+  let notes = (initialConnection?.nodes ?? []).map(mapQuoteNote).filter((note): note is QuoteNote => note !== null);
   let hasNextPage = Boolean(initialConnection?.pageInfo?.hasNextPage);
   let after = initialConnection?.pageInfo?.endCursor ?? undefined;
+
+  if (!initialConnection) {
+    const firstPage = await fetchQuoteNotesPage(quoteId);
+    notes = firstPage.notes;
+    hasNextPage = firstPage.hasNextPage;
+    after = firstPage.endCursor ?? undefined;
+  }
 
   while (hasNextPage && after) {
     await sleep(runtimeConfig.jobber.requestDelayMs);
@@ -493,18 +547,6 @@ async function fetchDraftQuotePage(
           ... on CustomFieldLink { label valueLink { url text } }
           ... on CustomFieldArea { label valueArea { length width } }
         }
-        notes(
-          first: ${runtimeConfig.jobber.notesPageSize}
-          sort: [{ key: CREATED_AT, direction: DESCENDING }]
-        ) {
-          nodes {
-            ${NOTE_NODE_SELECTION}
-          }
-          pageInfo {
-            hasNextPage
-            endCursor
-          }
-        }
       }
       pageInfo {
         hasNextPage
@@ -523,7 +565,8 @@ async function fetchDraftQuotePage(
   const quoteNodes = data.quotes?.nodes ?? [];
   const quotes: DraftQuote[] = [];
   for (const node of quoteNodes) {
-    const notes = await fetchAllQuoteNotes(node.id, node.notes);
+    await sleep(runtimeConfig.jobber.requestDelayMs);
+    const notes = await fetchAllQuoteNotes(node.id, null);
     quotes.push(mapDraftQuote(node, notes));
   }
 

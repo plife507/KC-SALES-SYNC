@@ -2,6 +2,8 @@
 
 Plain HTML dashboard served by the Cloud Run dashboard service.
 
+Current accepted posture: public to anyone with the Cloud Run link. The dashboard serves quote/client/note-derived data from the sales Sheet, so revisit this if the link is shared outside the intended KC audience.
+
 ## Runtime expectations
 
 - In Cloud Run, the page loads live data from `/data/live-data.js` or `/data/live-data.json`.

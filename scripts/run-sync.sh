@@ -20,9 +20,9 @@ if [[ -z "${JOBBER_ACCESS_TOKEN:-}" ]]; then
   : "${JOBBER_REFRESH_TOKEN:?Missing JOBBER_REFRESH_TOKEN}"
 fi
 
-export SHEET_TAB="${SHEET_TAB:-DRAFT}"
+export SHEET_TAB="${SHEET_TAB:-Draft Quote Sales Touch}"
 export QUOTE_LIMIT="${QUOTE_LIMIT:-100}"
-export QUOTE_PAGE_SIZE="${QUOTE_PAGE_SIZE:-10}"
+export QUOTE_PAGE_SIZE="${QUOTE_PAGE_SIZE:-5}"
 
 mkdir -p "$LOG_DIR"
 cd "$PROJECT_DIR"

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>KC Sales Dashboard</title>
     <style>
       :root {
@@ -27,6 +27,10 @@
         --kc-shadow: 0 10px 24px rgba(0, 80, 112, 0.08);
         --kc-shadow-soft: 0 6px 16px rgba(0, 80, 112, 0.06);
         --kc-ring: 0 0 0 3px rgba(0, 174, 239, 0.18);
+        --safe-top: env(safe-area-inset-top, 0px);
+        --safe-right: env(safe-area-inset-right, 0px);
+        --safe-bottom: env(safe-area-inset-bottom, 0px);
+        --safe-left: env(safe-area-inset-left, 0px);
       }
 
       * { box-sizing: border-box; }
@@ -73,6 +77,7 @@
       a {
         color: var(--kc-blue);
         text-decoration: none;
+        -webkit-tap-highlight-color: transparent;
       }
 
       a:hover { text-decoration: underline; }
@@ -81,6 +86,7 @@
       input,
       select {
         font: inherit;
+        -webkit-tap-highlight-color: transparent;
       }
 
       button {
@@ -158,34 +164,48 @@
 
       .hero-status-row {
         display: grid;
-        grid-template-columns: minmax(0, 1.25fr) minmax(320px, 0.95fr);
+        grid-template-columns: minmax(0, 1.45fr) minmax(320px, 0.85fr);
         gap: 10px;
         align-items: stretch;
       }
 
       .hero-meta-grid {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: minmax(120px, 0.9fr) repeat(4, minmax(0, 1fr));
         gap: 8px;
       }
 
       .hero-meta-chip {
-        padding: 8px 10px;
-        border-radius: 12px;
+        padding: 10px 12px;
+        border-radius: 14px;
         background: rgba(255,255,255,0.12);
         border: 1px solid rgba(255,255,255,0.16);
+        min-height: 72px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
       }
 
       .hero-meta-chip strong {
         display: block;
-        font-size: 20px;
+        font-size: 22px;
         line-height: 1;
-        margin-bottom: 4px;
+        margin-bottom: 6px;
       }
 
       .hero-meta-chip span {
         color: rgba(255,255,255,0.78);
         font-size: 12px;
+      }
+
+      .hero-meta-chip.primary {
+        background: rgba(255,255,255,0.16);
+      }
+
+      .hero-meta-chip.primary span {
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        font-size: 11px;
       }
 
       .hero-meta,
@@ -203,14 +223,37 @@
         line-height: 1.45;
       }
 
+      .hero-action-block {
+        min-width: min(100%, 430px);
+        display: grid;
+        gap: 6px;
+      }
+
       .hero-actions {
         position: relative;
         z-index: 1;
-        display: flex;
-        flex-wrap: wrap;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
         gap: 8px;
         align-content: start;
         padding: 8px;
+        width: 100%;
+      }
+
+      .hero-actions .btn {
+        width: 100%;
+        min-width: 0;
+      }
+
+      .hero-helper-note {
+        margin-top: 0;
+        font-size: 12px;
+        line-height: 1.45;
+        color: rgba(255, 255, 255, 0.82);
+      }
+
+      .hero-helper-note strong {
+        color: #ffffff;
       }
 
       .refresh-panel {
@@ -540,7 +583,8 @@
       }
 
       .stats-grid {
-        grid-template-columns: repeat(5, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
+        align-items: stretch;
       }
 
       .rep-grid {
@@ -564,7 +608,8 @@
 
       .metric-card.overdue::before { background: linear-gradient(90deg, rgba(228,50,50,0.16), rgba(228,50,50,0.7)); }
       .metric-card.stale::before { background: linear-gradient(90deg, rgba(245,192,76,0.18), rgba(245,192,76,0.76)); }
-      .metric-card.active::before { background: linear-gradient(90deg, rgba(60,184,120,0.18), rgba(60,184,120,0.72)); }
+      .metric-card.attention::before { background: linear-gradient(90deg, rgba(255,221,107,0.18), rgba(255,221,107,0.76)); }
+      .metric-card.fresh::before { background: linear-gradient(90deg, rgba(60,184,120,0.18), rgba(60,184,120,0.72)); }
       .metric-card.unassigned::before { background: linear-gradient(90deg, rgba(0,174,239,0.16), rgba(0,80,112,0.68)); }
       .metric-card.no-note::before { background: linear-gradient(90deg, rgba(123,135,148,0.18), rgba(123,135,148,0.7)); }
 
@@ -652,13 +697,20 @@
 
       .rep-metrics {
         display: grid;
-        grid-template-columns: repeat(3, minmax(0, 1fr));
+        grid-template-columns: repeat(4, minmax(0, 1fr));
         gap: 8px;
+        align-items: stretch;
       }
 
       .mini {
         border-radius: 12px;
         padding: 10px;
+        min-width: 0;
+        width: 100%;
+        min-height: 72px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
       }
 
       .mini strong {
@@ -675,7 +727,8 @@
 
       .mini.overdue { background: var(--kc-danger-bg); color: #8e1e1e; }
       .mini.stale { background: #fff8df; color: var(--kc-warning-text); }
-      .mini.active { background: var(--kc-success); color: var(--kc-success-text); }
+      .mini.attention { background: #fff4c2; color: #8a6a00; }
+      .mini.fresh { background: var(--kc-success); color: var(--kc-success-text); }
 
       .rep-note {
         display: none;
@@ -755,7 +808,8 @@
 
       .status.overdue { background: var(--kc-danger-bg); color: #8e1e1e; }
       .status.stale { background: #fff6d8; color: var(--kc-warning-text); }
-      .status.active { background: var(--kc-success); color: var(--kc-success-text); }
+      .status.attention { background: #fff4c2; color: #8a6a00; }
+      .status.fresh { background: var(--kc-success); color: var(--kc-success-text); }
 
       .note-cell {
         width: 300px;
@@ -807,6 +861,7 @@
         display: flex;
         flex-wrap: wrap;
         gap: 8px;
+        align-items: center;
       }
 
       .quote-action-btn,
@@ -844,7 +899,7 @@
 
       .quote-card {
         display: grid;
-        gap: 8px;
+        gap: 10px;
         padding: 12px;
         margin: 0 12px 10px;
         border-radius: 16px;
@@ -869,22 +924,59 @@
       }
 
       .quote-card-top {
-        display: flex;
-        justify-content: space-between;
-        align-items: start;
+        display: grid;
         gap: 10px;
       }
 
       .quote-card-title {
         min-width: 0;
         display: grid;
-        gap: 2px;
+        gap: 4px;
+      }
+
+      .quote-card-heading {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 10px;
+      }
+
+      .quote-card-title-block {
+        min-width: 0;
+        display: grid;
+        gap: 4px;
+      }
+
+      .quote-card-overline {
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--kc-muted);
+      }
+
+      .quote-card-primary-row {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
       }
 
       .quote-link {
         font-size: 16px;
         font-weight: 800;
         color: var(--kc-slate);
+      }
+
+      .quote-link-anchor {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        color: inherit;
+      }
+
+      .quote-link-anchor:hover {
+        text-decoration: none;
       }
 
       .quote-card-client,
@@ -905,6 +997,90 @@
       .quote-card-statuses {
         align-items: center;
         justify-content: flex-end;
+      }
+
+      .quote-card-meta-grid {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+        align-items: stretch;
+      }
+
+      .quote-card-meta-item {
+        min-width: 0;
+        min-height: 74px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 5px;
+        padding: 10px 10px;
+        border-radius: 14px;
+        background: rgba(245, 250, 254, 0.98);
+        border: 1px solid rgba(113, 150, 173, 0.14);
+      }
+
+      .quote-card-meta-item span {
+        display: block;
+        width: 100%;
+        font-size: 10px;
+        line-height: 1.1;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--kc-muted);
+        text-align: center;
+      }
+
+      .quote-card-meta-item strong {
+        min-width: 0;
+        width: 100%;
+        font-size: 12px;
+        line-height: 1.35;
+        color: var(--kc-slate);
+        text-align: center;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+        justify-content: center;
+      }
+
+      .quote-card-note {
+        display: grid;
+        gap: 4px;
+        padding: 9px 10px;
+        border-radius: 12px;
+        background: linear-gradient(180deg, rgba(245, 250, 254, 0.94), rgba(237, 247, 253, 0.9));
+        border: 1px solid rgba(113, 150, 173, 0.14);
+      }
+
+      .quote-note-label {
+        font-size: 10px;
+        line-height: 1;
+        font-weight: 800;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--kc-muted);
+      }
+
+      .quote-note-text {
+        margin: 0;
+        color: var(--kc-text);
+        font-size: 12px;
+        line-height: 1.45;
+        display: -webkit-box;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 2;
+        overflow: hidden;
+      }
+
+      .quote-card-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 8px;
       }
 
       .quote-age,
@@ -968,8 +1144,10 @@
         }
 
         .page {
-          padding: 8px;
-          padding-bottom: calc(88px + env(safe-area-inset-bottom));
+          padding-top: max(8px, var(--safe-top));
+          padding-right: max(8px, var(--safe-right));
+          padding-bottom: calc(124px + var(--safe-bottom));
+          padding-left: max(8px, var(--safe-left));
         }
 
         .stack {
@@ -993,7 +1171,15 @@
         }
 
         .hero-top {
+          display: grid;
+          gap: 10px;
           align-items: start;
+        }
+
+        .hero-action-block {
+          width: 100%;
+          min-width: 0;
+          gap: 8px;
         }
 
         .hero-title-block {
@@ -1004,8 +1190,13 @@
           font-size: 22px;
         }
 
+        .hero-helper-note {
+          font-size: 11px;
+          line-height: 1.4;
+        }
+
         .hero-meta-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 6px;
         }
 
@@ -1030,6 +1221,10 @@
           border-radius: 12px;
         }
 
+        .hero-actions {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
         .refresh-panel {
           flex-direction: column;
           gap: 8px;
@@ -1046,8 +1241,8 @@
         }
 
         .btn {
-          min-height: 34px;
-          padding: 7px 10px;
+          min-height: 38px;
+          padding: 8px 10px;
           font-size: 12px;
           flex: 1 1 calc(50% - 5px);
         }
@@ -1079,7 +1274,7 @@
         }
 
         .controls-grid {
-          grid-template-columns: repeat(2, minmax(0, 1fr));
+          grid-template-columns: 1fr;
           gap: 8px;
         }
 
@@ -1094,7 +1289,7 @@
 
         .control-input,
         .control-select {
-          min-height: 36px;
+          min-height: 40px;
           padding: 0 10px;
           border-radius: 10px;
         }
@@ -1103,8 +1298,14 @@
         .pill-row {
           flex-wrap: nowrap;
           overflow-x: auto;
-          padding-bottom: 2px;
+          padding-bottom: 4px;
+          scroll-snap-type: x proximity;
           scrollbar-width: none;
+        }
+
+        .toggle-row > *,
+        .pill-row > * {
+          scroll-snap-align: start;
         }
 
         .toggle-row::-webkit-scrollbar,
@@ -1124,15 +1325,23 @@
         .toggle-pill,
         .pill,
         .sort-btn {
-          min-height: 30px;
-          padding: 5px 10px;
+          min-height: 32px;
+          padding: 6px 10px;
           font-size: 11px;
           white-space: nowrap;
         }
 
         .stats-grid {
-          grid-template-columns: repeat(3, minmax(0, 1fr));
+          grid-template-columns: repeat(2, minmax(0, 1fr));
           gap: 8px;
+        }
+
+        .hero-meta-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .hero-meta-chip.primary {
+          grid-column: 1 / -1;
         }
 
         .metric-card {
@@ -1175,9 +1384,15 @@
           font-size: 11px;
         }
 
+        .rep-metrics {
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 6px;
+        }
+
         .mini {
           padding: 6px;
           border-radius: 10px;
+          min-height: 58px;
         }
 
         .mini strong {
@@ -1204,19 +1419,53 @@
         }
 
         .quote-list {
-          padding-bottom: 4px;
+          padding-bottom: 8px;
         }
 
         .quote-card {
-          margin: 0 8px 6px;
-          padding: 8px;
-          border-radius: 12px;
-          gap: 5px;
+          margin: 0 0 10px;
+          padding: 12px;
+          border-radius: 18px;
+          gap: 10px;
+          box-shadow: 0 12px 26px rgba(0, 80, 112, 0.08);
         }
 
         .quote-card-top {
-          flex-direction: column;
-          gap: 6px;
+          gap: 10px;
+        }
+
+        .quote-card-heading {
+          gap: 12px;
+        }
+
+        .quote-card-title,
+        .quote-card-title-block {
+          gap: 4px;
+        }
+
+        .quote-card-primary-row {
+          align-items: center;
+        }
+
+        .quote-link {
+          font-size: 17px;
+          line-height: 1.1;
+        }
+
+        .quote-card-client,
+        .quote-card-detail {
+          font-size: 12px;
+          display: -webkit-box;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+
+        .quote-card-client {
+          -webkit-line-clamp: 1;
+        }
+
+        .quote-card-detail {
+          -webkit-line-clamp: 2;
         }
 
         .quote-card-statuses {
@@ -1224,32 +1473,32 @@
           gap: 6px;
         }
 
-        .quote-card-title {
-          gap: 2px;
+        .quote-card-meta-grid {
+          gap: 7px;
         }
 
-        .quote-link {
-          font-size: 13px;
+        .quote-card-meta-item {
+          min-height: 68px;
+          padding: 8px 8px;
+          border-radius: 12px;
         }
 
-        .quote-card-client,
-        .quote-card-detail {
+        .quote-card-meta-item strong {
           font-size: 11px;
-          display: -webkit-box;
-          -webkit-box-orient: vertical;
-          overflow: hidden;
         }
 
-        .quote-card-client,
-        .quote-card-detail {
-          -webkit-line-clamp: 1;
+        .quote-card-note {
+          gap: 4px;
+          padding: 8px 9px;
+          border-radius: 11px;
         }
 
-        .quote-card-meta {
-          display: grid;
-          grid-template-columns: repeat(2, minmax(0, 1fr));
-          gap: 2px 6px;
-          font-size: 10px;
+        .quote-note-text {
+          font-size: 11px;
+        }
+
+        .quote-card-footer {
+          align-items: flex-end;
         }
 
         .quote-age,
@@ -1257,32 +1506,39 @@
         .status,
         .quote-action-btn,
         .mobile-action-btn {
-          min-height: 26px;
-          padding: 4px 8px;
+          min-height: 32px;
           font-size: 10px;
         }
 
         .quote-card-actions {
-          gap: 5px;
+          justify-content: flex-end;
+          gap: 6px;
         }
 
         .quote-action-btn {
-          flex: 1 1 0;
+          min-height: 30px;
+          padding: 0 10px;
+          font-size: 10px;
+          font-weight: 700;
+          letter-spacing: 0.02em;
+          box-shadow: none;
         }
 
         .mobile-action-bar {
           position: fixed;
-          left: 8px;
-          right: 8px;
-          bottom: calc(8px + env(safe-area-inset-bottom));
+          left: max(8px, var(--safe-left));
+          right: max(8px, var(--safe-right));
+          bottom: calc(10px + var(--safe-bottom));
           z-index: 20;
           display: grid;
-          gap: 6px;
-          padding: 8px;
-          border-radius: 14px;
-          border: 1px solid rgba(113, 150, 173, 0.16);
-          background: rgba(255,255,255,0.98);
-          box-shadow: 0 12px 24px rgba(40, 58, 83, 0.12);
+          gap: 7px;
+          padding: 10px;
+          border-radius: 18px;
+          border: 1px solid rgba(113, 150, 173, 0.18);
+          background: rgba(255,255,255,0.94);
+          backdrop-filter: blur(18px);
+          -webkit-backdrop-filter: blur(18px);
+          box-shadow: 0 18px 34px rgba(40, 58, 83, 0.16);
         }
 
         .mobile-action-summary {
@@ -1315,6 +1571,63 @@
           font-size: 12px;
         }
       }
+
+      @media (max-width: 560px) {
+        .hero-actions {
+          grid-template-columns: 1fr;
+        }
+
+        .hero-meta-grid,
+        .quote-card-meta-grid {
+          grid-template-columns: 1fr;
+        }
+
+        .stats-grid {
+          grid-template-columns: repeat(2, minmax(0, 1fr));
+        }
+
+        .quote-card-heading,
+        .quote-card-footer {
+          grid-template-columns: 1fr;
+          display: grid;
+        }
+
+        .quote-card-statuses,
+        .quote-card-actions {
+          justify-content: flex-start;
+        }
+
+        .mobile-action-summary {
+          align-items: start;
+          flex-direction: column;
+        }
+      }
+
+      @media (max-width: 430px) {
+        .quote-card {
+          padding: 11px;
+          border-radius: 16px;
+        }
+
+        .quote-link {
+          font-size: 16px;
+        }
+
+        .quote-card-client,
+        .quote-card-detail,
+        .quote-note-text {
+          font-size: 11px;
+        }
+
+        .quote-card-meta-item strong {
+          font-size: 10.5px;
+        }
+
+        .quote-action-btn {
+          min-height: 29px;
+          padding: 0 9px;
+        }
+      }
     </style>
   </head>
   <body>
@@ -1326,9 +1639,12 @@
               <div class="eyebrow">KC Power Clean · Sales Dashboard</div>
               <h1>Draft Quotes</h1>
             </div>
-            <div class="hero-actions">
-              <button id="refresh-data" class="btn" type="button">Refresh live data</button>
-              <button id="reload-page" class="btn secondary" type="button">Reload view data</button>
+            <div class="hero-action-block">
+              <div class="hero-actions">
+                <button id="refresh-data" class="btn" type="button">Refresh live data</button>
+                <button id="reload-page" class="btn secondary" type="button">Reload view data</button>
+              </div>
+              <div class="hero-helper-note"><strong>Refresh live data</strong> pulls a fresh sheet-backed update now. <strong>Reload view data</strong> reopens the current dashboard payload.</div>
             </div>
           </div>
           <div class="hero-status-row">
@@ -1556,11 +1872,17 @@
       }
 
       function toneClass(tone) {
-        return tone === 'overdue' ? 'overdue' : tone === 'stale' ? 'stale' : 'active';
+        if (tone === 'overdue') return 'overdue';
+        if (tone === 'stale') return 'stale';
+        if (tone === 'attention') return 'attention';
+        return 'fresh';
       }
 
       function priorityValue(tone) {
-        return tone === 'overdue' ? 0 : tone === 'stale' ? 1 : 2;
+        if (tone === 'overdue') return 0;
+        if (tone === 'stale') return 1;
+        if (tone === 'attention') return 2;
+        return 3;
       }
 
       function labelForFilterKey(key) {
@@ -1586,10 +1908,11 @@
 
       function metricCards(metrics) {
         return [
-          { label: 'Overdue > 7 Days', value: metrics.overdue, sub: 'Highest-pressure follow-up bucket', className: 'overdue' },
-          { label: 'Stale 4–7 Days', value: metrics.stale, sub: 'Needs movement before it slips', className: 'stale' },
+          { label: 'Fresh 0–2 Days', value: metrics.fresh, sub: 'Touched within the last 72 hours', className: 'fresh' },
+          { label: 'Needs Touch 3–5 Days', value: metrics.attention, sub: 'Entering the follow-up window', className: 'attention' },
+          { label: 'Stale 6–10 Days', value: metrics.stale, sub: 'Needs movement before it slips red', className: 'stale' },
+          { label: 'Overdue 11+ Days', value: metrics.overdue, sub: 'Oldest red-bucket follow-up pressure', className: 'overdue' },
           { label: 'No Note', value: metrics.noNote, sub: 'Quotes missing note context', className: 'no-note' },
-          { label: 'Active < 4 Days', value: metrics.active, sub: 'Recently touched and still moving', className: 'active mobile-secondary' },
           { label: 'Total Drafts', value: metrics.totalDrafts, sub: 'Current draft quote population', className: 'mobile-secondary' },
         ];
       }
@@ -1597,7 +1920,8 @@
       function passesTopFilter(row) {
         if (state.filterKey === 'overdue') return row.rowTone === 'overdue';
         if (state.filterKey === 'stale') return row.rowTone === 'stale';
-        if (state.filterKey === 'active') return row.rowTone === 'active';
+        if (state.filterKey === 'attention') return row.rowTone === 'attention';
+        if (state.filterKey === 'fresh') return row.rowTone === 'fresh';
         if (state.filterKey === 'unassigned') return row.missingOwner;
         if (state.filterKey === 'no-note') return row.hasNoNote;
         return true;
@@ -1623,7 +1947,7 @@
           if (!passesLeadSourceFilter(row)) return false;
           if (state.noNoteOnly && !row.hasNoNote) return false;
           if (state.missingOwnerOnly && !row.missingOwner) return false;
-          if (state.hideActive && row.rowTone === 'active') return false;
+          if (state.hideActive && (row.rowTone === 'fresh' || row.rowTone === 'attention')) return false;
           return true;
         });
       }
@@ -1769,24 +2093,28 @@
       function renderHero() {
         const generated = new Date(state.data.generatedAt);
         const filtered = filteredRows();
+        const visibleFresh = filtered.filter((row) => row.rowTone === 'fresh').length;
+        const visibleAttention = filtered.filter((row) => row.rowTone === 'attention').length;
+        const visibleStale = filtered.filter((row) => row.rowTone === 'stale').length;
         const visibleOverdue = filtered.filter((row) => row.rowTone === 'overdue').length;
-        const uniqueReps = new Set(filtered.map((row) => row.repName)).size;
         const noTouch = filtered.filter((row) => row.daysSinceTouch == null).length;
 
         els.heroStats.innerHTML = [
-          { value: filtered.length, label: 'shown' },
-          { value: visibleOverdue, label: 'overdue' },
-          { value: uniqueReps, label: 'reps' },
+          { value: filtered.length, label: 'Draft quotes shown', className: 'primary' },
+          { value: visibleFresh, label: '0–2 days' },
+          { value: visibleAttention, label: '3–5 days' },
+          { value: visibleStale, label: '6–10 days' },
+          { value: visibleOverdue, label: '11+ days' },
         ].map((item) => `
-          <div class="hero-meta-chip">
+          <div class="hero-meta-chip ${item.className || ''}">
             <strong>${escapeHtml(item.value)}</strong>
             <span>${escapeHtml(item.label)}</span>
           </div>
         `).join('');
 
         els.heroMeta.innerHTML = `
-          <div><strong>${escapeHtml(state.data.metrics.overdue)}</strong> overdue · <strong>${escapeHtml(state.data.metrics.noNote)}</strong> no-note · <strong>${escapeHtml(state.data.summary.uniqueLeadSources)}</strong> lead sources</div>
-          <div style="margin-top:6px;">Sheet <span class="mono">${escapeHtml(state.data.tabName)}</span> · updated ${escapeHtml(generated.toLocaleString())} · ${escapeHtml(noTouch)} no-touch rows in view</div>
+          <div><strong>${escapeHtml(state.data.metrics.noNote)}</strong> no-note · <strong>${escapeHtml(noTouch)}</strong> no-touch in current view · <strong>${escapeHtml(state.data.summary.uniqueLeadSources)}</strong> lead sources</div>
+          <div style="margin-top:6px;">Sheet <span class="mono">${escapeHtml(state.data.tabName)}</span> · updated ${escapeHtml(generated.toLocaleString())}</div>
         `;
 
         els.footerNote.textContent = `Dashboard reading ${state.data.tabName}. Use live refresh for a server pull, or reload view data to re-read the current payload.`;
@@ -1867,9 +2195,10 @@
       function renderAgingFilters() {
         const options = [
           { key: 'all', label: 'All aging buckets' },
-          { key: 'overdue', label: 'Overdue' },
-          { key: 'stale', label: 'Stale' },
-          { key: 'active', label: 'Active' },
+          { key: 'fresh', label: 'Fresh 0–2' },
+          { key: 'attention', label: 'Needs touch 3–5' },
+          { key: 'stale', label: 'Stale 6–10' },
+          { key: 'overdue', label: 'Overdue 11+' },
         ];
 
         els.agingFilters.innerHTML = options.map((option) => `
@@ -1919,9 +2248,10 @@
               <div class="rep-score">${escapeHtml(rep.scoreLabel)}</div>
             </div>
             <div class="rep-metrics">
-              <div class="mini overdue"><strong>${escapeHtml(rep.overdue)}</strong><span>Overdue</span></div>
-              <div class="mini stale"><strong>${escapeHtml(rep.stale)}</strong><span>Stale</span></div>
-              <div class="mini active"><strong>${escapeHtml(rep.active)}</strong><span>Active</span></div>
+              <div class="mini overdue"><strong>${escapeHtml(rep.overdue)}</strong><span>11+</span></div>
+              <div class="mini stale"><strong>${escapeHtml(rep.stale)}</strong><span>6–10</span></div>
+              <div class="mini attention"><strong>${escapeHtml(rep.attention)}</strong><span>3–5</span></div>
+              <div class="mini fresh"><strong>${escapeHtml(rep.fresh)}</strong><span>0–2</span></div>
             </div>
           </button>
         `).join('');
@@ -1997,41 +2327,60 @@
           </tr>
         `).join('');
 
-        els.mobileList.innerHTML = rows.map((row) => `
+        els.mobileList.innerHTML = rows.map((row) => {
+          const notePreview = row.hasNoNote
+            ? 'No note recorded yet.'
+            : (row.lastNoteSummary || 'No note recorded yet.');
+
+          return `
           <article class="quote-card ${toneClass(row.rowTone)}">
             <div class="quote-card-top">
-              <div class="quote-card-title">
-                <div>
-                  <span class="quote-link">${escapeHtml(row.quoteNumber)}</span>
+              <div class="quote-card-heading">
+                <div class="quote-card-title-block">
+                  <div class="quote-card-overline">Draft quote</div>
+                  <div class="quote-card-title">
+                    <div class="quote-card-primary-row">
+                      <div>
+                        ${row.quoteUrl ? `<a class="quote-link quote-link-anchor" href="${escapeHtml(row.quoteUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.quoteNumber)}</a>` : `<span class="quote-link">${escapeHtml(row.quoteNumber)}</span>`}
+                      </div>
+                    </div>
+                    <div class="quote-card-client">
+                      ${row.clientUrl ? `<a href="${escapeHtml(row.clientUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.clientName)}</a>` : escapeHtml(row.clientName)}
+                    </div>
+                    <div class="quote-card-detail">${escapeHtml(row.quoteTitle || 'Quote')}</div>
+                  </div>
                 </div>
-                <div class="quote-card-client">
-                  ${row.clientUrl ? `<a href="${escapeHtml(row.clientUrl)}" target="_blank" rel="noopener noreferrer">${escapeHtml(row.clientName)}</a>` : escapeHtml(row.clientName)}
+                <div class="quote-card-statuses">
+                  <span class="status ${toneClass(row.rowTone)}">${escapeHtml(row.status)}</span>
+                  <span class="quote-age">${row.daysSinceTouch == null ? 'No touch yet' : `${escapeHtml(row.daysSinceTouch)}d`}</span>
                 </div>
-                <div class="quote-card-detail">${escapeHtml(row.quoteTitle || 'Quote')}</div>
               </div>
-              <div class="quote-card-statuses">
-                <span class="status ${toneClass(row.rowTone)}">${escapeHtml(row.status)}</span>
-                <span class="quote-age">${row.daysSinceTouch == null ? 'No touch yet' : `${escapeHtml(row.daysSinceTouch)}d since touch`}</span>
+              <div class="quote-card-meta-grid">
+                <div class="quote-card-meta-item"><span>Salesperson</span><strong>${escapeHtml(row.repName)}</strong></div>
+                <div class="quote-card-meta-item"><span>Source</span><strong>${escapeHtml(row.leadSource || 'Unknown')}</strong></div>
+                <div class="quote-card-meta-item"><span>Last touch</span><strong>${escapeHtml(row.lastTouchAt || 'No touch yet')}</strong></div>
+                <div class="quote-card-meta-item"><span>Touched by</span><strong>${escapeHtml(row.lastTouchBy || '—')}</strong></div>
+              </div>
+              <div class="quote-card-note">
+                <span class="quote-note-label">Latest note</span>
+                <p class="quote-note-text">${escapeHtml(notePreview)}</p>
               </div>
             </div>
-            <div class="quote-card-meta">
-              <span><strong>Rep:</strong> ${escapeHtml(row.repName)}</span>
-              <span><strong>Lead:</strong> ${escapeHtml(row.leadSource || 'Unknown')}</span>
-              <span><strong>Touch:</strong> ${escapeHtml(row.lastTouchAt || 'No touch yet')}</span>
-              <span><strong>By:</strong> ${escapeHtml(row.lastTouchBy || '—')}</span>
-            </div>
-            ${(row.hasNoNote || row.missingOwner) ? `
-              <div class="quote-card-flags">
-                ${row.hasNoNote ? '<span class="flag">No note</span>' : ''}
-                ${row.missingOwner ? '<span class="flag">Missing owner</span>' : ''}
+            <div class="quote-card-footer">
+              ${(row.hasNoNote || row.missingOwner) ? `
+                <div class="quote-card-flags">
+                  ${row.hasNoNote ? '<span class="flag">No note</span>' : ''}
+                  ${row.missingOwner ? '<span class="flag">Missing owner</span>' : ''}
+                </div>
+              ` : '<div></div>'}
+              <div class="quote-card-actions">
+                ${row.quoteUrl ? `<a class="quote-action-btn primary" href="${escapeHtml(row.quoteUrl)}" target="_blank" rel="noopener noreferrer">Jobber</a>` : ''}
+                ${row.clientUrl ? `<a class="quote-action-btn" href="${escapeHtml(row.clientUrl)}" target="_blank" rel="noopener noreferrer">Client</a>` : ''}
               </div>
-            ` : ''}
-            <div class="quote-card-actions">
-              ${row.quoteUrl ? `<a class="quote-action-btn primary" href="${escapeHtml(row.quoteUrl)}" target="_blank" rel="noopener noreferrer">Open in Jobber</a>` : ''}
-              ${row.clientUrl ? `<a class="quote-action-btn" href="${escapeHtml(row.clientUrl)}" target="_blank" rel="noopener noreferrer">Client</a>` : ''}
             </div>
           </article>
-        `).join('');
+        `;
+        }).join('');
 
         els.tableSubtitle.textContent = `${rows.length} row${rows.length === 1 ? '' : 's'} shown · ${state.repFilter} · ${labelForFilterKey(state.filterKey)} · ${state.agingView === 'all' ? 'all aging buckets' : state.agingView}.`;
         els.resultsSummary.textContent = rows.length

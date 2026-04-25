@@ -1,7 +1,7 @@
 import { NO_NOTE_COMMENT } from "./constants.js";
 export const draftSheetLayout = {
     key: "draft",
-    tabNames: ["DRAFT"],
+    tabNames: ["DRAFT", "DRAFT QUOTE SALES TOUCH"],
     headers: [
         "Quote Number",
         "Quote Title",

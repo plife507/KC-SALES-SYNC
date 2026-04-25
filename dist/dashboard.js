@@ -8,7 +8,6 @@ import { runtimeConfig, NO_NOTE_TEXT } from "./config.js";
 const execFileAsync = promisify(execFile);
 const DEFAULT_DASHBOARD_TAB = "Draft Quote Sales Touch";
 const DEFAULT_OUTPUT_PATH = join(process.cwd(), "dashboard", "data", "live-data.json");
-const CARD_ROW_LIMIT = 200;
 function env(name) {
     const value = process.env[name]?.trim();
     return value ? value : undefined;
@@ -119,36 +118,43 @@ function summarizeNote(text, maxLength = 220) {
         return trimmed;
     return `${trimmed.slice(0, maxLength - 1).trimEnd()}…`;
 }
-function normalizeRepName(value) {
+function normalizeOwnerName(value) {
     const trimmed = value.trim();
     return trimmed || "Unassigned";
 }
 function bucketForDays(days) {
     if (days === null)
         return "overdue";
-    if (days > 7)
+    if (days > 10)
         return "overdue";
-    if (days >= 4)
+    if (days >= 6)
         return "stale";
-    return "active";
+    if (days >= 3)
+        return "attention";
+    return "fresh";
 }
 function statusLabel(bucket) {
     if (bucket === "overdue")
-        return "Overdue > 7 days";
+        return "Overdue 11+ days";
     if (bucket === "stale")
-        return "Stale 4–7 days";
-    return "Active < 4 days";
+        return "Stale 6–10 days";
+    if (bucket === "attention")
+        return "Needs touch 3–5 days";
+    return "Fresh 0–2 days";
 }
 function toneSortValue(bucket) {
     if (bucket === "overdue")
         return 0;
     if (bucket === "stale")
         return 1;
-    return 2;
+    if (bucket === "attention")
+        return 2;
+    return 3;
 }
 function repSummaryNote(repName, rows) {
     const overdue = rows.filter((row) => row.rowTone === "overdue");
     const stale = rows.filter((row) => row.rowTone === "stale");
+    const attention = rows.filter((row) => row.rowTone === "attention");
     const oldest = rows.reduce((max, row) => {
         if (row.daysSinceTouch == null)
             return max;
@@ -167,13 +173,16 @@ function repSummaryNote(repName, rows) {
             ? "This card reads more like manageable drift than emergency — still useful for coaching and follow-up pacing."
             : "Smaller volume, but the concentration of overdue quotes makes this rep card red-flag worthy.";
     }
-    return "Mostly active pipeline right now, with enough context in notes to coach without opening every quote.";
+    if (attention.length >= 1) {
+        return "This rep has quotes entering the follow-up window soon, but not yet in the older stale buckets.";
+    }
+    return "Mostly fresh pipeline right now, with enough context in notes to coach without opening every quote.";
 }
 function buildDashboard(records, spreadsheetId, tabName) {
     const rows = records.map((record) => {
         const quote = extractHyperlinkParts(record.quote_number ?? "");
         const client = extractHyperlinkParts(record.client_name ?? "");
-        const repName = normalizeRepName(record.kc_sales_rep ?? "");
+        const repName = normalizeOwnerName(record.native_salesperson ?? "");
         const lastTouchAt = record.last_sales_touch_at ?? "";
         const noteText = record.last_note_text ?? "";
         const noNote = noteText.trim() === "" || noteText.trim() === NO_NOTE_TEXT;
@@ -186,7 +195,7 @@ function buildDashboard(records, spreadsheetId, tabName) {
             clientName: client.label || record.client_name || "",
             clientUrl: client.url,
             repName,
-            nativeSalesperson: record.native_salesperson ?? "",
+            nativeSalesperson: record.kc_sales_rep ?? "",
             leadSource: record.lead_source ?? "",
             status: statusLabel(tone),
             quoteStatus: record.quote_status ?? "",
@@ -213,7 +222,8 @@ function buildDashboard(records, spreadsheetId, tabName) {
         totalDrafts: rows.length,
         overdue: rows.filter((row) => row.rowTone === "overdue").length,
         stale: rows.filter((row) => row.rowTone === "stale").length,
-        active: rows.filter((row) => row.rowTone === "active").length,
+        attention: rows.filter((row) => row.rowTone === "attention").length,
+        fresh: rows.filter((row) => row.rowTone === "fresh").length,
         unassigned: rows.filter((row) => row.missingOwner).length,
         noNote: rows.filter((row) => row.hasNoNote).length,
     };
@@ -246,13 +256,15 @@ function buildDashboard(records, spreadsheetId, tabName) {
         .map(([repName, repRows]) => {
         const overdue = repRows.filter((row) => row.rowTone === "overdue").length;
         const stale = repRows.filter((row) => row.rowTone === "stale").length;
-        const active = repRows.filter((row) => row.rowTone === "active").length;
+        const attention = repRows.filter((row) => row.rowTone === "attention").length;
+        const fresh = repRows.filter((row) => row.rowTone === "fresh").length;
         return {
             repName,
             totalDrafts: repRows.length,
             overdue,
             stale,
-            active,
+            attention,
+            fresh,
             scoreLabel: `${overdue} overdue`,
             note: repSummaryNote(repName, repRows),
         };
@@ -279,12 +291,13 @@ function buildDashboard(records, spreadsheetId, tabName) {
         repNames,
         leadSources,
         reps,
-        rows: rows.slice(0, CARD_ROW_LIMIT),
+        rows,
         filters: [
             { key: "all", label: "All drafts" },
-            { key: "overdue", label: "Overdue only" },
-            { key: "stale", label: "Stale 4–7 days" },
-            { key: "active", label: "Active under 4 days" },
+            { key: "fresh", label: "Fresh 0–2 days" },
+            { key: "attention", label: "Needs touch 3–5 days" },
+            { key: "stale", label: "Stale 6–10 days" },
+            { key: "overdue", label: "Overdue 11+ days" },
             { key: "unassigned", label: "Unassigned" },
             { key: "no-note", label: "No note" },
         ],

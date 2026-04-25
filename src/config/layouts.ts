@@ -20,7 +20,7 @@ export type SheetLayout = {
 
 export const draftSheetLayout: SheetLayout = {
   key: "draft",
-  tabNames: ["DRAFT"],
+  tabNames: ["DRAFT", "DRAFT QUOTE SALES TOUCH"],
   headers: [
     "Quote Number",
     "Quote Title",
