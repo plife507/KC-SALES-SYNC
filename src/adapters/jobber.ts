@@ -122,7 +122,7 @@ let cachedAccessToken = runtimeConfig.jobber.accessToken;
 let cachedRefreshToken = runtimeConfig.jobber.refreshToken;
 
 async function persistRotatedRefreshToken(refreshToken: string): Promise<void> {
-  const secretName = process.env.JOBBER_REFRESH_TOKEN_SECRET ?? "projects/823212137840/secrets/JOBBER_REFRESH_TOKEN";
+  const secretName = process.env.JOBBER_REFRESH_TOKEN_SECRET ?? "projects/823212137840/secrets/KC_SALES_SYNC_JOBBER_REFRESH_TOKEN";
   const { google } = await import("googleapis");
   const auth = new google.auth.GoogleAuth({
     scopes: ["https://www.googleapis.com/auth/cloud-platform"],

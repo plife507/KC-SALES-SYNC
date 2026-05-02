@@ -124,7 +124,7 @@ function normalizeOwnerName(value) {
 }
 function bucketForDays(days) {
     if (days === null)
-        return "overdue";
+        return "attention";
     if (days > 10)
         return "overdue";
     if (days >= 6)
@@ -141,6 +141,11 @@ function statusLabel(bucket) {
     if (bucket === "attention")
         return "Needs touch 3–5 days";
     return "Fresh 0–2 days";
+}
+function statusLabelForDays(days, bucket) {
+    if (days === null)
+        return "No touch yet";
+    return statusLabel(bucket);
 }
 function toneSortValue(bucket) {
     if (bucket === "overdue")
@@ -178,7 +183,7 @@ function repSummaryNote(repName, rows) {
     }
     return "Mostly fresh pipeline right now, with enough context in notes to coach without opening every quote.";
 }
-function buildDashboard(records, spreadsheetId, tabName) {
+export function buildDashboard(records, spreadsheetId, tabName) {
     const rows = records.map((record) => {
         const quote = extractHyperlinkParts(record.quote_number ?? "");
         const client = extractHyperlinkParts(record.client_name ?? "");
@@ -187,7 +192,7 @@ function buildDashboard(records, spreadsheetId, tabName) {
         const noteText = record.last_note_text ?? "";
         const noNote = noteText.trim() === "" || noteText.trim() === NO_NOTE_TEXT;
         const days = daysSinceTouch(lastTouchAt);
-        const tone = noNote && days === null ? "overdue" : bucketForDays(days);
+        const tone = bucketForDays(days);
         return {
             quoteNumber: quote.label || record.quote_number || "",
             quoteUrl: quote.url,
@@ -197,7 +202,7 @@ function buildDashboard(records, spreadsheetId, tabName) {
             repName,
             nativeSalesperson: record.kc_sales_rep ?? "",
             leadSource: record.lead_source ?? "",
-            status: statusLabel(tone),
+            status: statusLabelForDays(days, tone),
             quoteStatus: record.quote_status ?? "",
             daysSinceTouch: days,
             lastTouchAt,

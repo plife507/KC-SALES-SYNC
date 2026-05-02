@@ -58,6 +58,7 @@ export type DashboardPayload = {
         label: string;
     }>;
 };
+export declare function buildDashboard(records: Record<string, string>[], spreadsheetId: string, tabName: string): DashboardPayload;
 export declare function buildDashboardData(options?: {
     spreadsheetId?: string;
     tabName?: string;

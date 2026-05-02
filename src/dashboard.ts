@@ -202,7 +202,7 @@ function normalizeOwnerName(value: string): string {
 }
 
 function bucketForDays(days: number | null): DashboardBucketKey {
-  if (days === null) return "overdue";
+  if (days === null) return "attention";
   if (days > 10) return "overdue";
   if (days >= 6) return "stale";
   if (days >= 3) return "attention";
@@ -214,6 +214,11 @@ function statusLabel(bucket: DashboardBucketKey): string {
   if (bucket === "stale") return "Stale 6–10 days";
   if (bucket === "attention") return "Needs touch 3–5 days";
   return "Fresh 0–2 days";
+}
+
+function statusLabelForDays(days: number | null, bucket: DashboardBucketKey): string {
+  if (days === null) return "No touch yet";
+  return statusLabel(bucket);
 }
 
 function toneSortValue(bucket: DashboardBucketKey): number {
@@ -255,7 +260,7 @@ function repSummaryNote(repName: string, rows: DashboardRow[]): string {
   return "Mostly fresh pipeline right now, with enough context in notes to coach without opening every quote.";
 }
 
-function buildDashboard(records: SheetRecord[], spreadsheetId: string, tabName: string): DashboardPayload {
+export function buildDashboard(records: Record<string, string>[], spreadsheetId: string, tabName: string): DashboardPayload {
   const rows: DashboardRow[] = records.map((record) => {
     const quote = extractHyperlinkParts(record.quote_number ?? "");
     const client = extractHyperlinkParts(record.client_name ?? "");
@@ -264,7 +269,7 @@ function buildDashboard(records: SheetRecord[], spreadsheetId: string, tabName: 
     const noteText = record.last_note_text ?? "";
     const noNote = noteText.trim() === "" || noteText.trim() === NO_NOTE_TEXT;
     const days = daysSinceTouch(lastTouchAt);
-    const tone = noNote && days === null ? "overdue" : bucketForDays(days);
+    const tone = bucketForDays(days);
 
     return {
       quoteNumber: quote.label || record.quote_number || "",
@@ -275,7 +280,7 @@ function buildDashboard(records: SheetRecord[], spreadsheetId: string, tabName: 
       repName,
       nativeSalesperson: record.kc_sales_rep ?? "",
       leadSource: record.lead_source ?? "",
-      status: statusLabel(tone),
+      status: statusLabelForDays(days, tone),
       quoteStatus: record.quote_status ?? "",
       daysSinceTouch: days,
       lastTouchAt,

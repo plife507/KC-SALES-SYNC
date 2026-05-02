@@ -15,15 +15,15 @@ Preferred canonical location:
 ## Sync service (`kc-sales-sync`)
 
 Additional secrets:
-- `JOBBER_ACCESS_TOKEN` -> `JOBBER_ACCESS_TOKEN:latest`
-- `JOBBER_CLIENT_ID` -> `JOBBER_CLIENT_ID:latest`
-- `JOBBER_CLIENT_SECRET` -> `JOBBER_CLIENT_SECRET:latest`
-- `JOBBER_REFRESH_TOKEN` -> `JOBBER_REFRESH_TOKEN:latest`
+- `JOBBER_ACCESS_TOKEN` -> `KC_SALES_SYNC_JOBBER_ACCESS_TOKEN:latest`
+- `JOBBER_CLIENT_ID` -> `KC_SALES_SYNC_JOBBER_CLIENT_ID:latest`
+- `JOBBER_CLIENT_SECRET` -> `KC_SALES_SYNC_JOBBER_CLIENT_SECRET:latest`
+- `JOBBER_REFRESH_TOKEN` -> `KC_SALES_SYNC_JOBBER_REFRESH_TOKEN:latest`
 
 Runtime refresh-token rotation:
-- default write target: `projects/823212137840/secrets/JOBBER_REFRESH_TOKEN`
+- default write target: `projects/823212137840/secrets/KC_SALES_SYNC_JOBBER_REFRESH_TOKEN`
 - override env: `JOBBER_REFRESH_TOKEN_SECRET`
-- service account needs permission to add Secret Manager versions for `JOBBER_REFRESH_TOKEN`
+- service account needs permission to add Secret Manager versions for `KC_SALES_SYNC_JOBBER_REFRESH_TOKEN`
 
 Recommended env:
 - `FUNCTION_TARGET=kcSalesSync`
